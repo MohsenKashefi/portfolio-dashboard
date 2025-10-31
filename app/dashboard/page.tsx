@@ -207,7 +207,6 @@ export default function DashboardPage() {
             description="Add, edit, or remove portfolio projects"
             href="/dashboard/projects"
             color="from-primary to-accent-cyan"
-            disabled
           />
           <QuickActionCard
             title="View Messages"

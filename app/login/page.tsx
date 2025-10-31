@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogIn } from "lucide-react";
 import { signIn } from "@/lib/auth";
 import Link from "next/link";
 
@@ -10,6 +9,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -38,21 +38,20 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-dark via-gray-900 to-black flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        {/* Logo/Brand */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-primary to-accent-cyan rounded-2xl mb-4">
-            <LogIn className="w-8 h-8 text-primary-dark" />
-          </div>
-          <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent-cyan">
-            Welcome Back
-          </h1>
-          <p className="text-gray-400 mt-2">Sign in to your dashboard</p>
-        </div>
+    <div className="h-screen overflow-hidden bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center relative">
+      {/* Background Image - Dashboard themed */}
+      <div
+        className="absolute inset-0 bg-cover bg-center"
+        style={{
+          backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwMCIgaGVpZ2h0PSI4MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJncmFkIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdHlsZT0ic3RvcC1jb2xvcjojMWUyOTNiO3N0b3Atb3BhY2l0eToxIiAvPjxzdG9wIG9mZnNldD0iMTAwJSIgc3R5bGU9InN0b3AtY29sb3I6IzFhMjAyYztzdG9wLW9wYWNpdHk6MSIgLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iMTIwMCIgaGVpZ2h0PSI4MDAiIGZpbGw9InVybCgjZ3JhZCkiLz48IS0tIERhc2hib2FyZCBncmlkIC0tPjxnIG9wYWNpdHk9IjAuMSI+PHBhdGggZD0iTSAwIDAgTCAxMjAwIDAgTCAxMjAwIDgwMCBMIDAgODAwIFoiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxIiBmaWxsPSJub25lIi8+PHBhdGggZD0iTSAzMDAgMCBMIDMwMCA4MDAiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxIi8+PHBhdGggZD0iTSA2MDAgMCBMIDYwMCA4MDAiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxIi8+PHBhdGggZD0iTSA5MDAgMCBMIDkwMCA4MDAiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxIi8+PHBhdGggZD0iTSAwIDIwMCBMIDEyMDAgMjAwIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMSIvPjxwYXRoIGQ9Ik0gMCA0MDAgTCAxMjAwIDQwMCIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjEiLz48cGF0aCBkPSJNIDAgNjAwIEwgMTIwMCA2MDAiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9nPjwhLS0gQ2hhcnQgbGluZXMgLS0+PGcgb3BhY2l0eT0iMC4zIj48cGF0aCBkPSJNIDEwMCA2MDAgTCAzMDAgNDAwIEwgNTAwIDQ1MCBMIDCWMCA zMDAgTCA5MDAgMzUwIEwgMTEwMCAyMDAiIHN0cm9rZT0iIzRhZGU4MCIgc3Ryb2tlLXdpZHRoPSIzIiBmaWxsPSJub25lIi8+PHBhdGggZD0iTSAxMDAgNTAwIEwgMzAwIDU1MCBMIDU0MCA0MDAgTCA3MDAgNDUwIEwgOTAwIDM1MCBMIDM5MDAgMjUwIiBzdHJva2U9IiM2MzY2ZjEiIHN0cm9rZS13aWR0aD0iMyIgZmlsbD0ibm9uZSIvPjwvZz48L3N2Zz4=')`
+        }}
+      ></div>
 
-        {/* Login Form */}
-        <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8">
+      <div className="relative z-10 w-full max-w-md px-6">
+        {/* Login Card */}
+        <div className="bg-white rounded-3xl shadow-2xl p-8">
+          <h2 className="text-2xl font-bold text-center mb-8">Login to your account</h2>
+
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
               <div className="bg-red-500/10 border border-red-500/50 text-red-500 px-4 py-3 rounded-lg text-sm">
@@ -60,62 +59,69 @@ export default function LoginPage() {
               </div>
             )}
 
+            {/* Email Input */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-300 mb-2">
-                Email Address
-              </label>
+              <label className="text-xs text-gray-600 mb-2 block">Email address</label>
               <input
-                id="email"
                 type="email"
-                required
+                placeholder="admin@dashboard.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
-                placeholder="admin@example.com"
+                required
                 disabled={isLoading}
+                className="w-full px-0 py-3 border-b-2 border-gray-300 focus:border-black outline-none transition-colors bg-transparent text-sm disabled:opacity-50"
               />
             </div>
 
+            {/* Password Input */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
-                Password
-              </label>
+              <label className="text-xs text-gray-600 mb-2 block">Password</label>
               <input
-                id="password"
                 type="password"
-                required
+                placeholder="••••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition"
-                placeholder="••••••••"
+                required
                 disabled={isLoading}
+                className="w-full px-0 py-3 border-b-2 border-gray-300 focus:border-black outline-none transition-colors bg-transparent text-sm disabled:opacity-50"
               />
             </div>
 
+            {/* Remember me & Forgot password */}
+            <div className="flex items-center justify-between text-xs">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <div
+                  className={`w-5 h-5 border-2 ${rememberMe ? 'border-green-400' : 'border-gray-300'} rounded flex items-center justify-center transition-colors`}
+                  onClick={() => setRememberMe(!rememberMe)}
+                >
+                  {rememberMe && <div className="w-3 h-3 bg-green-400 rounded"></div>}
+                </div>
+                <span>Remember me</span>
+              </label>
+              <Link href="/" className="text-gray-600 hover:text-black transition-colors">
+                Forgot password?
+              </Link>
+            </div>
+
+            {/* Login Button */}
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full px-6 py-3 bg-gradient-to-r from-primary to-accent-cyan text-primary-dark font-bold rounded-lg hover:shadow-lg hover:shadow-primary/50 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              className="w-full bg-black text-white py-3 rounded-xl text-center font-medium hover:bg-gray-800 transition-colors text-sm mt-6 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLoading ? "Signing in..." : "Sign In"}
+              {isLoading ? "Signing in..." : "login"}
             </button>
           </form>
 
+          {/* Back to Home Link */}
           <div className="mt-6 text-center">
-            <p className="text-sm text-gray-400">
-              Login with your Supabase account credentials
-            </p>
+            <Link
+              href="/"
+              className="text-xs text-gray-600 hover:text-black transition-colors"
+            >
+              ← Back to Home
+            </Link>
           </div>
-        </div>
-
-        {/* Back to Home */}
-        <div className="mt-6 text-center">
-          <Link
-            href="/"
-            className="text-sm text-gray-400 hover:text-primary transition"
-          >
-            ← Back to Home
-          </Link>
         </div>
       </div>
     </div>

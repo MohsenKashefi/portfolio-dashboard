@@ -7,7 +7,20 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
+// Client for frontend (uses anon key)
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Admin client for API routes (uses service role key - bypasses RLS)
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+export const supabaseAdmin = supabaseServiceKey
+  ? createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+  : supabase; // Fallback to anon if service key not set
 
 // Database types
 export type PageView = {
