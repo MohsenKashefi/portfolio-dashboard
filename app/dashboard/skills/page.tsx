@@ -203,10 +203,10 @@ export default function SkillsPage() {
             {skills.map((skill, index) => (
               <div
                 key={skill.id}
-                className={`backdrop-blur-sm border rounded-2xl p-6 hover:border-white/20 transition-all ${
+                className={`backdrop-blur-md border rounded-2xl p-6 transition-all shadow-lg ${
                   isDarkMode
-                    ? 'bg-white/5 border-white/10'
-                    : 'bg-white/60 border-white/40 hover:bg-white/70'
+                    ? 'bg-white/5 border-white/10 hover:border-white/20'
+                    : 'bg-white/80 border-white/60 hover:bg-white/90 hover:border-white/80 hover:shadow-xl'
                 }`}
               >
                 {/* Skill Info */}

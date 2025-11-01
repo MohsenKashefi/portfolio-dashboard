@@ -130,7 +130,7 @@ export default function ProjectsPage() {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-4 max-h-[calc(100vh-80px)] overflow-y-auto">
         {loading && (
           <div className="text-center py-12">
             <div className={`inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 ${isDarkMode ? 'border-primary' : 'border-blue-600'}`}></div>
@@ -151,30 +151,30 @@ export default function ProjectsPage() {
         )}
 
         {!loading && projects.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {projects.map((project) => (
               <div
                 key={project.id}
-                className={`backdrop-blur-sm border rounded-2xl p-6 hover:border-white/20 transition-all ${
+                className={`backdrop-blur-md border rounded-xl p-4 transition-all shadow-lg ${
                   isDarkMode
-                    ? 'bg-white/5 border-white/10'
-                    : 'bg-white/60 border-white/40 hover:bg-white/70'
+                    ? 'bg-white/5 border-white/10 hover:border-white/20'
+                    : 'bg-white/80 border-white/60 hover:bg-white/90 hover:border-white/80 hover:shadow-xl'
                 }`}
               >
                 {/* Featured Badge */}
                 {project.is_featured && (
-                  <div className="flex items-center gap-1 text-yellow-400 text-sm mb-3">
-                    <Star className="w-4 h-4 fill-current" />
+                  <div className="flex items-center gap-1 text-yellow-400 text-xs mb-2">
+                    <Star className="w-3 h-3 fill-current" />
                     <span>Featured</span>
                   </div>
                 )}
 
                 {/* Project Info */}
-                <h3 className={`text-xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{project.title}</h3>
-                <p className={`text-sm mb-3 line-clamp-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{project.description}</p>
+                <h3 className={`text-lg font-bold mb-1 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{project.title}</h3>
+                <p className={`text-xs mb-2 line-clamp-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{project.description}</p>
 
-                <div className="mb-3">
-                  <span className={`inline-block px-3 py-1 rounded-full text-xs ${
+                <div className="mb-2">
+                  <span className={`inline-block px-2 py-0.5 rounded-full text-xs ${
                     isDarkMode
                       ? 'bg-white/10 text-gray-300'
                       : 'bg-gray-200 text-gray-700'
@@ -185,20 +185,25 @@ export default function ProjectsPage() {
 
                 {/* Technologies */}
                 {project.technologies && project.technologies.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {project.technologies.map((tech, idx) => (
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    {project.technologies.slice(0, 3).map((tech, idx) => (
                       <span
                         key={idx}
-                        className="px-2 py-1 bg-primary/20 text-primary text-xs rounded"
+                        className="px-2 py-0.5 bg-primary/20 text-primary text-xs rounded"
                       >
                         {tech}
                       </span>
                     ))}
+                    {project.technologies.length > 3 && (
+                      <span className="px-2 py-0.5 text-gray-400 text-xs">
+                        +{project.technologies.length - 3}
+                      </span>
+                    )}
                   </div>
                 )}
 
                 {/* Links */}
-                <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center gap-3 mb-3">
                   {project.github_url && (
                     <a
                       href={project.github_url}
@@ -222,27 +227,27 @@ export default function ProjectsPage() {
                 </div>
 
                 {/* Actions */}
-                <div className={`flex items-center gap-2 pt-4 border-t ${isDarkMode ? 'border-white/10' : 'border-gray-200'}`}>
+                <div className={`flex items-center gap-2 pt-3 border-t ${isDarkMode ? 'border-white/10' : 'border-gray-200'}`}>
                   <button
                     onClick={() => openEditModal(project)}
-                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm transition ${
+                    className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-xs transition ${
                       isDarkMode
                         ? 'bg-white/10 hover:bg-white/20 text-white'
                         : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
                     }`}
                   >
-                    <Edit className="w-4 h-4" />
+                    <Edit className="w-3 h-3" />
                     Edit
                   </button>
                   <button
                     onClick={() => handleDelete(project.id)}
-                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm transition ${
+                    className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-xs transition ${
                       isDarkMode
                         ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400'
                         : 'bg-red-50 hover:bg-red-100 text-red-600'
                     }`}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3 h-3" />
                     Delete
                   </button>
                 </div>

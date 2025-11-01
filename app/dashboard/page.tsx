@@ -1,6 +1,6 @@
 "use client";
 
-import { Users, Eye, TrendingUp, Lock, LogOut, FolderOpen, MessageSquare, Moon, Sun, Award } from "lucide-react";
+import { Users, Eye, Lock, LogOut, FolderOpen, Moon, Sun, Award } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signOut } from "@/lib/auth";
@@ -12,11 +12,6 @@ interface Stats {
   unique_sessions: number;
   total_projects: number;
   unread_messages: number;
-}
-
-interface PopularPage {
-  page_path: string;
-  view_count: number;
 }
 
 interface RecentActivity {
@@ -35,7 +30,6 @@ export default function DashboardPage() {
     total_projects: 0,
     unread_messages: 0,
   });
-  const [popularPages, setPopularPages] = useState<PopularPage[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -55,7 +49,6 @@ export default function DashboardPage() {
           total_projects: 0,
           unread_messages: 0,
         });
-        setPopularPages(data.popularPages || []);
         setRecentActivity(data.recentActivity || []);
       }
     } catch (error) {
@@ -74,16 +67,8 @@ export default function DashboardPage() {
     { label: "Total Views", value: stats.total_views, icon: Eye, color: "from-blue-600 to-cyan-600" },
     { label: "Unique Visitors", value: stats.unique_sessions, icon: Users, color: "from-purple-600 to-pink-600" },
     { label: "Total Projects", value: stats.total_projects, icon: FolderOpen, color: "from-green-600 to-emerald-600" },
-    { label: "Unread Messages", value: stats.unread_messages, icon: MessageSquare, color: "from-orange-600 to-red-600" },
   ];
 
-  // Calculate percentages for popular pages
-  const totalViews = popularPages.reduce((sum, page) => sum + page.view_count, 0);
-  const recentViews = popularPages.map(page => ({
-    page: page.page_path.replace('/', '') || 'Home',
-    views: page.view_count,
-    percentage: totalViews > 0 ? Math.round((page.view_count / totalViews) * 100) : 0,
-  }));
 
   // Format recent activity
   const formatTimeAgo = (dateString: string) => {
@@ -151,7 +136,7 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <div className="container mx-auto px-6 py-8 max-w-7xl">
+      <div className="container mx-auto px-6 py-6 max-w-7xl h-[calc(100vh-88px)] overflow-hidden">
         {/* Loading State */}
         {loading && (
           <div className="text-center py-20">
@@ -160,83 +145,51 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Stats Grid */}
+        {/* Main Layout - Two Columns */}
         {!loading && (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {statsCards.map((stat, index) => (
-                <div
-                  key={index}
-                  className={`backdrop-blur-sm border rounded-2xl p-6 hover:border-white/20 transition-all ${
-                    isDarkMode
-                      ? 'bg-white/5 border-white/10'
-                      : 'bg-white/60 border-white/40 hover:bg-white/70'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <div className={`p-3 rounded-xl bg-gradient-to-r ${stat.color}`}>
-                      <stat.icon className="w-6 h-6 text-white" />
-                    </div>
-                  </div>
-                  <div className={`text-4xl font-bold mb-2 ${
-                    isDarkMode
-                      ? 'text-white'
-                      : 'bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent'
-                  }`}>{stat.value.toLocaleString()}</div>
-                  <div className={`text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{stat.label}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Analytics Section */}
-            <div className="grid lg:grid-cols-2 gap-6 mb-8">
-              {/* Most Viewed Pages */}
-              <div className={`backdrop-blur-sm border rounded-2xl p-8 hover:border-white/20 transition-all ${
-                isDarkMode
-                  ? 'bg-white/5 border-white/10'
-                  : 'bg-white/60 border-white/40 hover:bg-white/70'
-              }`}>
-                <h2 className={`text-2xl font-bold mb-6 ${
-                  isDarkMode
-                    ? 'text-white'
-                    : 'bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent'
-                }`}>Most Viewed Pages</h2>
-                <div className="space-y-5">
-                  {recentViews.length > 0 ? (
-                    recentViews.map((page, index) => (
-                      <div key={index}>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{page.page}</span>
-                          <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{page.views.toLocaleString()} views</span>
-                        </div>
-                        <div className={`w-full h-3 rounded-full overflow-hidden shadow-inner ${isDarkMode ? 'bg-white/10' : 'bg-white/50'}`}>
-                          <div
-                            className="h-full bg-gradient-to-r from-blue-600 to-cyan-600 rounded-full transition-all duration-500 shadow-lg"
-                            style={{ width: `${page.percentage}%` }}
-                          />
-                        </div>
+          <div className="grid lg:grid-cols-2 gap-6 h-full">
+            {/* Left Column */}
+            <div className="flex flex-col gap-6 overflow-hidden">
+              {/* Stats Cards - 3 cards vertically */}
+              <div className="grid grid-cols-3 gap-4">
+                {statsCards.map((stat, index) => (
+                  <div
+                    key={index}
+                    className={`backdrop-blur-md border rounded-xl p-4 transition-all shadow-lg ${
+                      isDarkMode
+                        ? 'bg-white/5 border-white/10 hover:border-white/20'
+                        : 'bg-white/80 border-white/60 hover:bg-white/90 hover:border-white/80 hover:shadow-xl'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center mb-3">
+                      <div className={`p-2 rounded-lg bg-gradient-to-r ${stat.color}`}>
+                        <stat.icon className="w-5 h-5 text-white" />
                       </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-400 text-center py-12 font-medium">No page views yet</p>
-                  )}
-                </div>
+                    </div>
+                    <div className={`text-2xl font-bold mb-1 text-center ${
+                      isDarkMode
+                        ? 'text-white'
+                        : 'bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent'
+                    }`}>{stat.value.toLocaleString()}</div>
+                    <div className={`text-xs font-medium text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{stat.label}</div>
+                  </div>
+                ))}
               </div>
 
               {/* Recent Activity */}
-              <div className={`backdrop-blur-sm border rounded-2xl p-8 hover:border-white/20 transition-all ${
+              <div className={`backdrop-blur-md border rounded-2xl p-6 transition-all flex-1 overflow-hidden flex flex-col shadow-lg ${
                 isDarkMode
-                  ? 'bg-white/5 border-white/10'
-                  : 'bg-white/60 border-white/40 hover:bg-white/70'
+                  ? 'bg-white/5 border-white/10 hover:border-white/20'
+                  : 'bg-white/80 border-white/60 hover:bg-white/90 hover:border-white/80 hover:shadow-xl'
               }`}>
-                <h2 className={`text-2xl font-bold mb-6 ${
+                <h2 className={`text-xl font-bold mb-4 ${
                   isDarkMode
                     ? 'text-white'
                     : 'bg-gradient-to-r from-cyan-600 to-green-600 bg-clip-text text-transparent'
                 }`}>Recent Activity</h2>
-                <div className="space-y-4">
+                <div className="space-y-3 overflow-y-auto flex-1">
                   {recentActivity.length > 0 ? (
-                    recentActivity.slice(0, 5).map((activity, index) => {
+                    recentActivity.slice(0, 8).map((activity, index) => {
                       const colors = ['bg-blue-500', 'bg-cyan-500', 'bg-purple-500', 'bg-pink-500', 'bg-green-500'];
                       const color = colors[index % colors.length];
                       const location = activity.country ? ` from ${activity.country}` : '';
@@ -253,41 +206,35 @@ export default function DashboardPage() {
                       );
                     })
                   ) : (
-                    <p className="text-gray-400 text-center py-12 font-medium">No recent activity</p>
+                    <p className="text-gray-400 text-center py-8 font-medium">No recent activity</p>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Quick Actions */}
-            <div>
-              <h2 className={`text-2xl font-bold mb-6 ${
-                isDarkMode
-                  ? 'text-white'
-                  : 'bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent'
-              }`}>Quick Actions</h2>
-              <div className="flex justify-center">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl w-full">
-                  <QuickActionCard
-                    title="Manage Projects"
-                    description="Add, edit, or remove portfolio projects"
-                    href="/dashboard/projects"
-                    icon={FolderOpen}
-                    color="from-blue-600 to-cyan-600"
-                    isDarkMode={isDarkMode}
-                  />
-                  <QuickActionCard
-                    title="Manage Skills"
-                    description="Update your skills and proficiency levels"
-                    href="/dashboard/skills"
-                    icon={Award}
-                    color="from-orange-600 to-red-600"
-                    isDarkMode={isDarkMode}
-                  />
-                </div>
+            {/* Right Column */}
+            <div className="flex flex-col gap-4">
+              {/* Quick Actions - No title */}
+              <div className="grid grid-cols-1 gap-4">
+                <QuickActionCard
+                  title="Manage Projects"
+                  description="Add, edit, or remove portfolio projects"
+                  href="/dashboard/projects"
+                  icon={FolderOpen}
+                  color="from-blue-600 to-cyan-600"
+                  isDarkMode={isDarkMode}
+                />
+                <QuickActionCard
+                  title="Manage Skills"
+                  description="Update your skills and proficiency levels"
+                  href="/dashboard/skills"
+                  icon={Award}
+                  color="from-orange-600 to-red-600"
+                  isDarkMode={isDarkMode}
+                />
               </div>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>
@@ -299,7 +246,7 @@ function ActivityItem({ action, time, color, isDarkMode }: { action: string; tim
     <div className={`flex items-start gap-4 p-4 rounded-lg backdrop-blur-sm transition-all ${
       isDarkMode
         ? 'bg-white/5 hover:bg-white/10'
-        : 'bg-white/30 hover:bg-white/50'
+        : 'bg-white/50 hover:bg-white/70 shadow-sm hover:shadow-md'
     }`}>
       <div className={`w-3 h-3 ${color} rounded-full mt-1.5 flex-shrink-0`} />
       <div className="flex-1 min-w-0">
@@ -321,10 +268,10 @@ function QuickActionCard({ title, description, href, icon: Icon, color, disabled
 }) {
   if (disabled) {
     return (
-      <div className={`relative block p-6 backdrop-blur-sm border rounded-2xl opacity-60 cursor-not-allowed ${
+      <div className={`relative block p-6 backdrop-blur-md border rounded-2xl opacity-60 cursor-not-allowed shadow-lg ${
         isDarkMode
           ? 'bg-white/5 border-white/10'
-          : 'bg-white/40 border-white/30'
+          : 'bg-white/70 border-white/50'
       }`}>
         <div className="absolute top-4 right-4">
           <Lock className={`w-5 h-5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
@@ -342,10 +289,10 @@ function QuickActionCard({ title, description, href, icon: Icon, color, disabled
   return (
     <Link
       href={href}
-      className={`block p-6 backdrop-blur-sm border rounded-2xl hover:border-white/20 transition-all group ${
+      className={`block p-6 backdrop-blur-md border rounded-2xl transition-all group shadow-lg ${
         isDarkMode
-          ? 'bg-white/5 border-white/10'
-          : 'bg-white/60 border-white/40 hover:bg-white/70'
+          ? 'bg-white/5 border-white/10 hover:border-white/20'
+          : 'bg-white/80 border-white/60 hover:bg-white/90 hover:border-white/80 hover:shadow-xl'
       }`}
     >
       <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r ${color} text-white text-xs font-bold mb-3`}>
