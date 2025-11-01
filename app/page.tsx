@@ -81,12 +81,12 @@ export default function HomePage() {
   return (
     <div className="h-screen overflow-hidden bg-white flex">
       {/* Left Section - Fixed height */}
-      <div className="w-full lg:w-1/2 h-screen flex flex-col justify-between p-6 lg:p-12 overflow-y-auto">
+      <div className="w-full lg:w-1/2 h-screen flex flex-col p-6 lg:p-12 overflow-y-auto">
         {/* Header */}
-        <div className="text-center">
+        <div className="text-center flex-shrink-0">
           <p className="text-xs text-gray-600 mb-4 tracking-wider">MODERN PORTFOLIO MANAGEMENT</p>
 
-          <h1 className="text-4xl lg:text-5xl xl:text-6xl font-bold leading-tight mb-6">
+          <h1 className="text-5xl lg:text-6xl xl:text-7xl font-bold leading-tight mb-6">
             BUILDING THE
             <br />
             <span className="relative inline-block">
@@ -105,13 +105,16 @@ export default function HomePage() {
           </h1>
         </div>
 
-        {/* About Section - Exact design from reference */}
-        <div className="bg-black text-white rounded-3xl p-8 lg:p-10 mt-6 relative overflow-hidden h-48 lg:h-56 flex items-center">
+        {/* Spacer */}
+        <div className="flex-grow"></div>
+
+        {/* About Section - Moved to bottom, larger height */}
+        <div className="bg-black text-white rounded-3xl p-8 lg:p-10 relative overflow-hidden h-64 lg:h-72 flex items-center flex-shrink-0">
           {/* Background Image - Modern workspace/developer setup */}
           <div
             className="absolute inset-0"
             style={{
-              backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=1200&auto=format&fit=crop&q=80')`,
+              backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)), url('https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=1200&auto=format&fit=crop&q=80')`,
               backgroundSize: 'cover',
               backgroundPosition: 'center'
             }}
@@ -119,39 +122,46 @@ export default function HomePage() {
 
           {/* Text Overlay - Title on left, description on right */}
           <div className="relative z-10 flex items-center gap-16 w-full">
-            <h3 className="text-3xl font-normal whitespace-nowrap">About me</h3>
+            <h3 className="text-4xl font-normal whitespace-nowrap">About me</h3>
             <p className="text-white text-lg font-light leading-relaxed">
-              Hey, I'm Mohsen — a developer who actually enjoys solving problems.<br />
-              I've spent the last <span className="font-semibold">3+ years</span> building apps from scratch — Flutter, backend systems, and everything in between.
+              Hey, I'm Mohsen — a developer who actually enjoys solving problems.
             </p>
           </div>
         </div>
       </div>
 
-      {/* Right Section - DASHBOARD BACKGROUND (EXACT LIKE REFERENCE) */}
-      <div className="hidden lg:flex w-1/2 h-screen relative overflow-hidden">
-        {/* Background Image - DASHBOARD/ANALYTICS PHOTO AS FULL BACKGROUND */}
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&auto=format&fit=crop&q=80')`
-          }}
-        ></div>
+      {/* Right Section - Background image with rounded corners */}
+      <div className="hidden lg:flex w-1/2 h-screen p-8 lg:p-12">
+        {/* Background card container with rounded corners */}
+        <div className="relative w-full h-full rounded-3xl overflow-hidden shadow-2xl">
+          {/* Background Image */}
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{
+              backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)), url('https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=1200&auto=format&fit=crop&q=80')`
+            }}
+          ></div>
 
-        {/* Content Container */}
-        <div className="relative z-10 w-full flex flex-col items-center justify-between h-full p-12">
-          {/* Top Section - Slide Title */}
-          <div className="text-center text-white pt-4">
-            <h2 className="text-4xl font-bold mb-2">{slides[currentSlide].title}</h2>
-            <p className="text-lg text-white/90">{slides[currentSlide].subtitle}</p>
-          </div>
+          {/* Content Container */}
+          <div className="relative z-10 w-full flex flex-col items-center h-full p-12">
+            {/* Top Section - Slide Title */}
+            <div className="text-center text-white pt-4 flex-shrink-0 w-full">
+              <h2 className="text-sm font-normal mb-0.5">{slides[currentSlide].title}</h2>
+              <p className="text-xs text-white/80">{slides[currentSlide].subtitle}</p>
+            </div>
 
-          {/* Center - Login Card (NO CAR IMAGE INSIDE) */}
-          <div className="w-full max-w-md">
-            <div className="bg-white rounded-3xl shadow-2xl p-8">
-              <h2 className="text-2xl font-bold text-center mb-8">Login to your account</h2>
+            {/* Spacer */}
+            <div className="flex-grow"></div>
 
-              <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Center - Login Card */}
+            <div className="w-full max-w-md flex-shrink-0">
+              {/* White card */}
+              <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
+                {/* White form area */}
+                <div className="p-6">
+              <h2 className="text-xl font-bold text-center mb-6">Login to your account</h2>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
                 {error && (
                   <div className="bg-red-500/10 border border-red-500/50 text-red-500 px-4 py-3 rounded-lg text-sm">
                     {error}
@@ -160,7 +170,7 @@ export default function HomePage() {
 
                 {/* Email Input */}
                 <div>
-                  <label className="text-xs text-gray-500 mb-2 block font-medium">Username</label>
+                  <label className="text-xs text-gray-500 mb-1 block font-medium">Username</label>
                   <input
                     type="email"
                     placeholder="admin@dashboard.com"
@@ -168,13 +178,13 @@ export default function HomePage() {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     disabled={isLoading}
-                    className="w-full px-0 py-3 border-b border-gray-200 focus:border-black outline-none transition-colors bg-transparent text-base disabled:opacity-50"
+                    className="w-full px-0 py-2 border-b border-gray-200 focus:border-black outline-none transition-colors bg-transparent text-sm disabled:opacity-50"
                   />
                 </div>
 
                 {/* Password Input */}
                 <div>
-                  <label className="text-xs text-gray-500 mb-2 block font-medium">Password</label>
+                  <label className="text-xs text-gray-500 mb-1 block font-medium">Password</label>
                   <input
                     type="password"
                     placeholder="••••••••••"
@@ -182,19 +192,19 @@ export default function HomePage() {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     disabled={isLoading}
-                    className="w-full px-0 py-3 border-b border-gray-200 focus:border-black outline-none transition-colors bg-transparent text-base disabled:opacity-50"
+                    className="w-full px-0 py-2 border-b border-gray-200 focus:border-black outline-none transition-colors bg-transparent text-sm disabled:opacity-50"
                   />
                 </div>
 
                 {/* Remember me & Forgot password */}
-                <div className="flex items-center justify-between text-sm pt-2">
+                <div className="flex items-center justify-between text-xs pt-1">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <div
-                      className={`w-5 h-5 border-2 ${rememberMe ? 'border-green-400 bg-green-400' : 'border-gray-300'} rounded flex items-center justify-center transition-colors`}
+                      className={`w-4 h-4 border-2 ${rememberMe ? 'border-green-400 bg-green-400' : 'border-gray-300'} rounded flex items-center justify-center transition-colors`}
                       onClick={() => setRememberMe(!rememberMe)}
                     >
                       {rememberMe && (
-                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                         </svg>
                       )}
@@ -210,36 +220,41 @@ export default function HomePage() {
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full bg-black text-white py-4 rounded-2xl text-center font-medium hover:bg-gray-800 transition-colors text-base mt-6 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-black text-white py-3 rounded-2xl text-center font-medium hover:bg-gray-800 transition-colors text-sm mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isLoading ? "Signing in..." : "login"}
                 </button>
               </form>
+              </div>
             </div>
           </div>
 
+          {/* Spacer */}
+          <div className="flex-grow"></div>
+
           {/* Bottom Section - Slide Counter & Navigation */}
-          <div className="flex items-center justify-between w-full pb-4">
-            <div className="text-white text-3xl font-bold">
+          <div className="flex items-center justify-between w-full flex-shrink-0">
+            <div className="text-white text-xl font-bold">
               {String(currentSlide + 1).padStart(2, '0')}/{String(slides.length).padStart(2, '0')}
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               <button
                 onClick={prevSlide}
-                className="w-14 h-14 bg-black/30 hover:bg-black/50 backdrop-blur-sm text-white rounded-2xl flex items-center justify-center transition-colors border border-white/20"
+                className="w-10 h-10 bg-black/30 hover:bg-black/50 backdrop-blur-sm text-white rounded-xl flex items-center justify-center transition-colors border border-white/20"
                 aria-label="Previous slide"
               >
-                <ChevronLeft className="w-6 h-6" />
+                <ChevronLeft className="w-4 h-4" />
               </button>
               <button
                 onClick={nextSlide}
-                className="w-14 h-14 bg-black/30 hover:bg-black/50 backdrop-blur-sm text-white rounded-2xl flex items-center justify-center transition-colors border border-white/20"
+                className="w-10 h-10 bg-black/30 hover:bg-black/50 backdrop-blur-sm text-white rounded-xl flex items-center justify-center transition-colors border border-white/20"
                 aria-label="Next slide"
               >
-                <ChevronRight className="w-6 h-6" />
+                <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           </div>
+        </div>
         </div>
       </div>
 

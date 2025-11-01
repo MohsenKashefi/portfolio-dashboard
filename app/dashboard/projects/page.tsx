@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, Github, ExternalLink, Star, Upload, X } from "lucide-react";
+import { Plus, Edit, Trash2, Github, ExternalLink, Star, Upload, X, Moon, Sun } from "lucide-react";
 import Link from "next/link";
 import { uploadProjectImage, deleteProjectImage } from "@/lib/uploadImage";
+import { useTheme } from "@/app/context/ThemeContext";
 
 interface Project {
   id: number;
@@ -22,6 +23,7 @@ interface Project {
 }
 
 export default function ProjectsPage() {
+  const { isDarkMode, toggleTheme } = useTheme();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -76,42 +78,69 @@ export default function ProjectsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-dark via-gray-900 to-black">
+    <div className={`min-h-screen transition-colors duration-500 ${
+      isDarkMode
+        ? 'bg-gradient-to-br from-primary-dark via-gray-900 to-black'
+        : 'bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50'
+    }`}>
       {/* Header */}
-      <header className="bg-white/5 backdrop-blur-sm border-b border-white/10">
+      <header className={`backdrop-blur-sm border-b sticky top-0 z-50 transition-colors duration-500 ${
+        isDarkMode
+          ? 'bg-white/5 border-white/10'
+          : 'bg-white/70 border-white/20'
+      }`}>
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link
               href="/dashboard"
-              className="text-gray-400 hover:text-white transition"
+              className={`transition ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
             >
               ← Back
             </Link>
-            <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent-cyan">
+            <h1 className={`text-2xl font-black transition-colors ${
+              isDarkMode
+                ? 'text-white'
+                : 'bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent'
+            }`}>
               Manage Projects
             </h1>
           </div>
-          <button
-            onClick={openCreateModal}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-accent-cyan text-white rounded-lg hover:opacity-90 transition"
-          >
-            <Plus className="w-5 h-5" />
-            Add Project
-          </button>
+          <div className="flex items-center gap-3">
+            {/* Theme Toggle */}
+            <button
+              onClick={toggleTheme}
+              className={`p-2.5 rounded-lg transition-all ${
+                isDarkMode
+                  ? 'bg-white/10 hover:bg-white/20 text-gray-400 hover:text-white'
+                  : 'bg-gray-800/10 hover:bg-gray-800/20 text-gray-700'
+              }`}
+              aria-label="Toggle theme"
+            >
+              {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+
+            <button
+              onClick={openCreateModal}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-accent-cyan text-white rounded-lg hover:opacity-90 transition"
+            >
+              <Plus className="w-5 h-5" />
+              Add Project
+            </button>
+          </div>
         </div>
       </header>
 
       <div className="container mx-auto px-4 py-8">
         {loading && (
           <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-            <p className="text-gray-400 mt-4">Loading projects...</p>
+            <div className={`inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 ${isDarkMode ? 'border-primary' : 'border-blue-600'}`}></div>
+            <p className={`mt-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Loading projects...</p>
           </div>
         )}
 
         {!loading && projects.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-gray-400 text-lg mb-4">No projects yet</p>
+            <p className={`text-lg mb-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>No projects yet</p>
             <button
               onClick={openCreateModal}
               className="px-6 py-3 bg-gradient-to-r from-primary to-accent-cyan text-white rounded-lg hover:opacity-90 transition"
@@ -126,7 +155,11 @@ export default function ProjectsPage() {
             {projects.map((project) => (
               <div
                 key={project.id}
-                className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 hover:border-white/20 transition-all"
+                className={`backdrop-blur-sm border rounded-2xl p-6 hover:border-white/20 transition-all ${
+                  isDarkMode
+                    ? 'bg-white/5 border-white/10'
+                    : 'bg-white/60 border-white/40 hover:bg-white/70'
+                }`}
               >
                 {/* Featured Badge */}
                 {project.is_featured && (
@@ -137,11 +170,15 @@ export default function ProjectsPage() {
                 )}
 
                 {/* Project Info */}
-                <h3 className="text-xl font-bold text-white mb-2">{project.title}</h3>
-                <p className="text-sm text-gray-400 mb-3 line-clamp-2">{project.description}</p>
+                <h3 className={`text-xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{project.title}</h3>
+                <p className={`text-sm mb-3 line-clamp-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{project.description}</p>
 
                 <div className="mb-3">
-                  <span className="inline-block px-3 py-1 bg-white/10 rounded-full text-xs text-gray-300">
+                  <span className={`inline-block px-3 py-1 rounded-full text-xs ${
+                    isDarkMode
+                      ? 'bg-white/10 text-gray-300'
+                      : 'bg-gray-200 text-gray-700'
+                  }`}>
                     {project.category}
                   </span>
                 </div>
@@ -167,7 +204,7 @@ export default function ProjectsPage() {
                       href={project.github_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-gray-400 hover:text-white transition"
+                      className={`transition ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
                     >
                       <Github className="w-5 h-5" />
                     </a>
@@ -177,7 +214,7 @@ export default function ProjectsPage() {
                       href={project.live_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-gray-400 hover:text-white transition"
+                      className={`transition ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
                     >
                       <ExternalLink className="w-5 h-5" />
                     </a>
@@ -185,17 +222,25 @@ export default function ProjectsPage() {
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-2 pt-4 border-t border-white/10">
+                <div className={`flex items-center gap-2 pt-4 border-t ${isDarkMode ? 'border-white/10' : 'border-gray-200'}`}>
                   <button
                     onClick={() => openEditModal(project)}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white text-sm transition"
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm transition ${
+                      isDarkMode
+                        ? 'bg-white/10 hover:bg-white/20 text-white'
+                        : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
+                    }`}
                   >
                     <Edit className="w-4 h-4" />
                     Edit
                   </button>
                   <button
                     onClick={() => handleDelete(project.id)}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-500/10 hover:bg-red-500/20 rounded-lg text-red-400 text-sm transition"
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm transition ${
+                      isDarkMode
+                        ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400'
+                        : 'bg-red-50 hover:bg-red-100 text-red-600'
+                    }`}
                   >
                     <Trash2 className="w-4 h-4" />
                     Delete
@@ -220,6 +265,7 @@ export default function ProjectsPage() {
             setEditingProject(null);
             fetchProjects();
           }}
+          isDarkMode={isDarkMode}
         />
       )}
     </div>
@@ -230,9 +276,10 @@ interface ProjectModalProps {
   project: Project | null;
   onClose: () => void;
   onSave: () => void;
+  isDarkMode: boolean;
 }
 
-function ProjectModal({ project, onClose, onSave }: ProjectModalProps) {
+function ProjectModal({ project, onClose, onSave, isDarkMode }: ProjectModalProps) {
   const [formData, setFormData] = useState({
     title: project?.title || '',
     description: project?.description || '',
@@ -330,14 +377,18 @@ function ProjectModal({ project, onClose, onSave }: ProjectModalProps) {
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-gray-900 border border-white/10 rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <h2 className="text-2xl font-bold text-white mb-6">
+      <div className={`border rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto ${
+        isDarkMode
+          ? 'bg-gray-900 border-white/10'
+          : 'bg-white border-gray-200'
+      }`}>
+        <h2 className={`text-2xl font-bold mb-6 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
           {project ? 'Edit Project' : 'Add New Project'}
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
               Title *
             </label>
             <input
@@ -345,12 +396,16 @@ function ProjectModal({ project, onClose, onSave }: ProjectModalProps) {
               required
               value={formData.title}
               onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:border-primary focus:outline-none"
+              className={`w-full px-4 py-2 border rounded-lg focus:border-primary focus:outline-none ${
+                isDarkMode
+                  ? 'bg-white/5 border-white/10 text-white'
+                  : 'bg-gray-50 border-gray-300 text-gray-900'
+              }`}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
               Description *
             </label>
             <textarea
@@ -358,19 +413,27 @@ function ProjectModal({ project, onClose, onSave }: ProjectModalProps) {
               rows={3}
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:border-primary focus:outline-none"
+              className={`w-full px-4 py-2 border rounded-lg focus:border-primary focus:outline-none ${
+                isDarkMode
+                  ? 'bg-white/5 border-white/10 text-white'
+                  : 'bg-gray-50 border-gray-300 text-gray-900'
+              }`}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 Category
               </label>
               <select
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:border-primary focus:outline-none"
+                className={`w-full px-4 py-2 border rounded-lg focus:border-primary focus:outline-none ${
+                  isDarkMode
+                    ? 'bg-white/5 border-white/10 text-white'
+                    : 'bg-gray-50 border-gray-300 text-gray-900'
+                }`}
               >
                 <option value="Mobile">Mobile</option>
                 <option value="Web">Web</option>
@@ -381,20 +444,24 @@ function ProjectModal({ project, onClose, onSave }: ProjectModalProps) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 Order Index
               </label>
               <input
                 type="number"
                 value={formData.order_index}
                 onChange={(e) => setFormData({ ...formData, order_index: parseInt(e.target.value) || 0 })}
-                className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:border-primary focus:outline-none"
+                className={`w-full px-4 py-2 border rounded-lg focus:border-primary focus:outline-none ${
+                  isDarkMode
+                    ? 'bg-white/5 border-white/10 text-white'
+                    : 'bg-gray-50 border-gray-300 text-gray-900'
+                }`}
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
               Technologies (comma-separated)
             </label>
             <input
@@ -402,12 +469,16 @@ function ProjectModal({ project, onClose, onSave }: ProjectModalProps) {
               placeholder="Flutter, Dart, Firebase"
               value={formData.technologies}
               onChange={(e) => setFormData({ ...formData, technologies: e.target.value })}
-              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:border-primary focus:outline-none"
+              className={`w-full px-4 py-2 border rounded-lg focus:border-primary focus:outline-none ${
+                isDarkMode
+                  ? 'bg-white/5 border-white/10 text-white'
+                  : 'bg-gray-50 border-gray-300 text-gray-900'
+              }`}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
               GitHub URL
             </label>
             <input
@@ -415,12 +486,16 @@ function ProjectModal({ project, onClose, onSave }: ProjectModalProps) {
               placeholder="https://github.com/username/repo"
               value={formData.github_url}
               onChange={(e) => setFormData({ ...formData, github_url: e.target.value })}
-              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:border-primary focus:outline-none"
+              className={`w-full px-4 py-2 border rounded-lg focus:border-primary focus:outline-none ${
+                isDarkMode
+                  ? 'bg-white/5 border-white/10 text-white'
+                  : 'bg-gray-50 border-gray-300 text-gray-900'
+              }`}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
               Live URL
             </label>
             <input
@@ -428,13 +503,17 @@ function ProjectModal({ project, onClose, onSave }: ProjectModalProps) {
               placeholder="https://example.com"
               value={formData.live_url}
               onChange={(e) => setFormData({ ...formData, live_url: e.target.value })}
-              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:border-primary focus:outline-none"
+              className={`w-full px-4 py-2 border rounded-lg focus:border-primary focus:outline-none ${
+                isDarkMode
+                  ? 'bg-white/5 border-white/10 text-white'
+                  : 'bg-gray-50 border-gray-300 text-gray-900'
+              }`}
             />
           </div>
 
           {/* Image Upload Section */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
               Project Image
             </label>
 
@@ -443,7 +522,7 @@ function ProjectModal({ project, onClose, onSave }: ProjectModalProps) {
                 <img
                   src={imagePreview}
                   alt="Preview"
-                  className="w-full h-48 object-cover rounded-lg border border-white/10"
+                  className={`w-full h-48 object-cover rounded-lg border ${isDarkMode ? 'border-white/10' : 'border-gray-300'}`}
                 />
                 <button
                   type="button"
@@ -452,19 +531,23 @@ function ProjectModal({ project, onClose, onSave }: ProjectModalProps) {
                 >
                   <X className="w-4 h-4" />
                 </button>
-                <div className="mt-2 text-xs text-gray-400 break-all">
+                <div className={`mt-2 text-xs break-all ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   {formData.image_path}
                 </div>
               </div>
             ) : (
               <div>
-                <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-white/20 rounded-lg cursor-pointer hover:border-primary transition bg-white/5">
+                <label className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition ${
+                  isDarkMode
+                    ? 'border-white/20 bg-white/5'
+                    : 'border-gray-300 bg-gray-50'
+                }`}>
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <Upload className="w-10 h-10 mb-3 text-gray-400" />
-                    <p className="mb-2 text-sm text-gray-400">
+                    <Upload className={`w-10 h-10 mb-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                    <p className={`mb-2 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                       <span className="font-semibold">Click to upload</span> or drag and drop
                     </p>
-                    <p className="text-xs text-gray-500">PNG, JPG or WEBP (MAX. 5MB)</p>
+                    <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>PNG, JPG or WEBP (MAX. 5MB)</p>
                   </div>
                   <input
                     type="file"
@@ -476,19 +559,19 @@ function ProjectModal({ project, onClose, onSave }: ProjectModalProps) {
                 </label>
                 {uploading && (
                   <div className="mt-2 text-center">
-                    <div className="inline-block animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-primary"></div>
-                    <p className="text-sm text-gray-400 mt-2">Uploading...</p>
+                    <div className={`inline-block animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 ${isDarkMode ? 'border-primary' : 'border-blue-600'}`}></div>
+                    <p className={`text-sm mt-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Uploading...</p>
                   </div>
                 )}
               </div>
             )}
-            <p className="mt-2 text-xs text-gray-500">
+            <p className={`mt-2 text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>
               Upload an image or use an icon name below (lock, flutter, code, etc.)
             </p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
+            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
               Icon Name (alternative to image)
             </label>
             <input
@@ -496,20 +579,28 @@ function ProjectModal({ project, onClose, onSave }: ProjectModalProps) {
               placeholder="lock, flutter, code, security"
               value={formData.icon_name}
               onChange={(e) => setFormData({ ...formData, icon_name: e.target.value })}
-              className="w-full px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:border-primary focus:outline-none"
+              className={`w-full px-4 py-2 border rounded-lg focus:border-primary focus:outline-none ${
+                isDarkMode
+                  ? 'bg-white/5 border-white/10 text-white'
+                  : 'bg-gray-50 border-gray-300 text-gray-900'
+              }`}
             />
-            <p className="mt-1 text-xs text-gray-500">
+            <p className={`mt-1 text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>
               Only used if no image is uploaded
             </p>
           </div>
 
           <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-300">
+            <label className={`flex items-center gap-2 text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
               <input
                 type="checkbox"
                 checked={formData.is_featured}
                 onChange={(e) => setFormData({ ...formData, is_featured: e.target.checked })}
-                className="w-4 h-4 rounded border-white/10 bg-white/5 text-primary focus:ring-primary"
+                className={`w-4 h-4 rounded text-primary focus:ring-primary ${
+                  isDarkMode
+                    ? 'border-white/10 bg-white/5'
+                    : 'border-gray-300 bg-white'
+                }`}
               />
               Featured Project
             </label>
@@ -519,7 +610,11 @@ function ProjectModal({ project, onClose, onSave }: ProjectModalProps) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition"
+              className={`flex-1 px-4 py-2 rounded-lg transition ${
+                isDarkMode
+                  ? 'bg-white/10 hover:bg-white/20 text-white'
+                  : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
+              }`}
             >
               Cancel
             </button>
