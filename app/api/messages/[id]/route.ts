@@ -4,13 +4,15 @@ import { supabaseAdmin } from '@/lib/supabase';
 // GET single message
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
+
     const { data: message, error } = await supabaseAdmin
       .from('messages')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .single();
 
     if (error) {
@@ -32,9 +34,10 @@ export async function GET(
 // PATCH update message status
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const { status } = body;
 
@@ -56,7 +59,7 @@ export async function PATCH(
     const { data: message, error } = await supabaseAdmin
       .from('messages')
       .update({ status })
-      .eq('id', params.id)
+      .eq('id', id)
       .select()
       .single();
 
@@ -79,13 +82,15 @@ export async function PATCH(
 // DELETE message
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
+
     const { error } = await supabaseAdmin
       .from('messages')
       .delete()
-      .eq('id', params.id);
+      .eq('id', id);
 
     if (error) {
       console.error('Error deleting message:', error);

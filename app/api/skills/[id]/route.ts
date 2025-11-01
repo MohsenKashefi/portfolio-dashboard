@@ -4,13 +4,15 @@ import { supabaseAdmin } from '@/lib/supabase';
 // GET single skill
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
+
     const { data: skill, error } = await supabaseAdmin
       .from('skills')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .single();
 
     if (error) {
@@ -32,9 +34,10 @@ export async function GET(
 // PUT update skill
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const { name, percentage, category, icon, order_index } = body;
 
@@ -61,7 +64,7 @@ export async function PUT(
         icon: icon || null,
         order_index: order_index || 0,
       })
-      .eq('id', params.id)
+      .eq('id', id)
       .select()
       .single();
 
@@ -84,13 +87,15 @@ export async function PUT(
 // DELETE skill
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
+
     const { error } = await supabaseAdmin
       .from('skills')
       .delete()
-      .eq('id', params.id);
+      .eq('id', id);
 
     if (error) {
       console.error('Error deleting skill:', error);
