@@ -2,26 +2,55 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Same palette and type as mohsenkashefi.live */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0e27;
-    --foreground: #ededed;
-  }
+  --bg: #0A1214;
+  --panel: #0F1B1E;
+  --panel-2: #132226;
+  --line: #1F3337;
+  --fg: #F2EEE6;
+  --mute: #86A09E;
+  --acc: #F3A847;
+  --cool: #72C6BE;
+  --danger: #E5715B;
+  color-scheme: dark;
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: color-mix(in srgb, var(--acc) 40%, transparent); }
+
+/* form controls share one quiet style */
+.field {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: var(--fg);
+  font-size: .92rem;
+  outline: none;
+  transition: border-color .2s;
+}
+.field:focus { border-color: var(--acc); }
+.field::placeholder { color: color-mix(in srgb, var(--mute) 70%, transparent); }
+textarea.field { resize: vertical; min-height: 84px; line-height: 1.5; }
+
+.label {
+  display: block;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: .64rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--mute);
+  margin-bottom: 6px;
 }
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+  .text-balance { text-wrap: balance; }
 }

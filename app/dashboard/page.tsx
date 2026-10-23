@@ -1,306 +1,167 @@
 "use client";
 
-import { Users, Eye, Lock, LogOut, FolderOpen, Moon, Sun, Award } from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { signOut } from "@/lib/auth";
-import { useEffect, useState } from "react";
-import { useTheme } from "@/app/context/ThemeContext";
+import { useEffect, useMemo, useState } from "react";
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { format, startOfDay, subDays } from "date-fns";
+import { supabase, type PageView } from "@/lib/supabase";
+import { Card, Empty, PageHeader, Stat } from "@/components/ui";
 
-interface Stats {
-  total_views: number;
-  unique_sessions: number;
-  total_projects: number;
-  unread_messages: number;
+const RANGES = [7, 30, 90] as const;
+
+// the website's sections, in the order a visitor scrolls through them
+const SECTIONS: [string, string][] = [
+  ["/home", "Opened the site"], ["/work", "Things I built"], ["/stack", "Stack"], ["/experience", "Experience"],
+  ["/contact", "Let's Talk"], ["/artist", "Artist side"], ["/artist/music", "Music"], ["/artist/photos", "Photos"], ["/artist/contact", "Artist contact"],
+];
+
+const hostOf = (r: string | null) => {
+  if (!r) return "Direct";
+  try { const h = new URL(r).hostname.replace(/^www\./, ""); return h.includes("google.") ? "Google" : h.includes("linkedin") || h === "lnkd.in" ? "LinkedIn" : h.includes("github") ? "GitHub" : h.includes("soundcloud") ? "SoundCloud" : h; }
+  catch { return "Other"; }
+};
+
+// page_views can be larger than one request (1000 rows), so read it in pages
+async function fetchSince(since: Date) {
+  const rows: PageView[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase.from("page_views")
+      .select("id,page_path,session_id,device_type,referrer,country,created_at")
+      .gte("created_at", since.toISOString()).order("created_at", { ascending: true }).range(from, from + 999);
+    if (error) throw error;
+    rows.push(...(data as PageView[]));
+    if (!data || data.length < 1000 || rows.length > 50000) break;
+  }
+  return rows;
 }
 
-interface RecentActivity {
-  page_path: string;
-  created_at: string;
-  country: string | null;
-  device_type: string | null;
-}
-
-export default function DashboardPage() {
-  const router = useRouter();
-  const { isDarkMode, toggleTheme } = useTheme();
-  const [stats, setStats] = useState<Stats>({
-    total_views: 0,
-    unique_sessions: 0,
-    total_projects: 0,
-    unread_messages: 0,
-  });
-  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
-  const [loading, setLoading] = useState(true);
+export default function VisitorsPage() {
+  const [days, setDays] = useState<(typeof RANGES)[number]>(30);
+  const [rows, setRows] = useState<PageView[] | null>(null);
+  const [allTime, setAllTime] = useState<number | null>(null);
+  const [err, setErr] = useState("");
 
   useEffect(() => {
-    fetchDashboardData();
+    setRows(null); setErr("");
+    fetchSince(startOfDay(subDays(new Date(), days - 1))).then(setRows).catch(e => setErr(e.message || "Could not load visits"));
+  }, [days]);
+  useEffect(() => {
+    supabase.from("page_views").select("id", { count: "exact", head: true }).then(({ count }) => setAllTime(count ?? 0));
   }, []);
 
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/analytics/stats');
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data.stats || {
-          total_views: 0,
-          unique_sessions: 0,
-          total_projects: 0,
-          unread_messages: 0,
-        });
-        setRecentActivity(data.recentActivity || []);
-      }
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-    } finally {
-      setLoading(false);
+  const s = useMemo(() => {
+    if (!rows) return null;
+    const sessionOf = (r: PageView) => r.session_id || `row-${r.id}`;
+    const today = format(new Date(), "yyyy-MM-dd");
+    const byDay = new Map<string, { views: number; visitors: Set<string> }>();
+    for (let i = days - 1; i >= 0; i--) byDay.set(format(subDays(new Date(), i), "yyyy-MM-dd"), { views: 0, visitors: new Set() });
+    const sessions = new Map<string, { first: PageView; paths: Set<string>; last: string }>();
+    for (const r of rows) {
+      const d = format(new Date(r.created_at), "yyyy-MM-dd"), sid = sessionOf(r);
+      const b = byDay.get(d); if (b) { b.views++; b.visitors.add(sid); }
+      const ss = sessions.get(sid);
+      if (!ss) sessions.set(sid, { first: r, paths: new Set([r.page_path]), last: r.created_at });
+      else { ss.paths.add(r.page_path); ss.last = r.created_at; }
     }
-  };
-
-  const handleLogout = async () => {
-    await signOut();
-    router.push("/");
-  };
-
-  const statsCards = [
-    { label: "Total Views", value: stats.total_views, icon: Eye, color: "from-blue-600 to-cyan-600" },
-    { label: "Unique Visitors", value: stats.unique_sessions, icon: Users, color: "from-purple-600 to-pink-600" },
-    { label: "Total Projects", value: stats.total_projects, icon: FolderOpen, color: "from-green-600 to-emerald-600" },
-  ];
-
-
-  // Format recent activity
-  const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-    const diffDays = Math.floor(diffHours / 24);
-    return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-  };
+    const visits = [...sessions.values()];
+    const count = (f: (v: (typeof visits)[number]) => string) => {
+      const m = new Map<string, number>(); visits.forEach(v => { const k = f(v); m.set(k, (m.get(k) || 0) + 1); });
+      return [...m].sort((a, b) => b[1] - a[1]);
+    };
+    return {
+      chart: [...byDay].map(([d, v]) => ({ day: format(new Date(d), "d MMM"), views: v.views, visitors: v.visitors.size })),
+      views: rows.length,
+      visitors: sessions.size,
+      today: byDay.get(today)?.visitors.size ?? 0,
+      perVisit: sessions.size ? rows.length / sessions.size : 0,
+      devices: count(v => v.first.device_type || "unknown"),
+      sources: count(v => hostOf(v.first.referrer)).slice(0, 8),
+      reach: SECTIONS.map(([p, label]) => [label, visits.filter(v => v.paths.has(p) || (p === "/home" && v.paths.size > 0)).length] as [string, number]),
+      recent: visits.sort((a, b) => b.last.localeCompare(a.last)).slice(0, 12),
+    };
+  }, [rows, days]);
 
   return (
-    <div className={`min-h-screen transition-colors duration-500 ${
-      isDarkMode
-        ? 'bg-gradient-to-br from-primary-dark via-gray-900 to-black'
-        : 'bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50'
-    }`}>
-      {/* Header */}
-      <header className={`backdrop-blur-sm border-b sticky top-0 z-50 transition-colors duration-500 ${
-        isDarkMode
-          ? 'bg-white/5 border-white/10'
-          : 'bg-white/70 border-white/20'
-      }`}>
-        <div className="container mx-auto px-6 py-5 flex items-center justify-between">
-          <div>
-            <h1 className={`text-3xl font-bold transition-colors ${
-              isDarkMode
-                ? 'text-white'
-                : 'bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent'
-            }`}>Dashboard</h1>
-            <p className={`text-sm mt-1 transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Welcome back, Mohsen</p>
-          </div>
-          <div className="flex items-center gap-3">
-            {/* Theme Toggle */}
-            <button
-              onClick={toggleTheme}
-              className={`p-2.5 rounded-lg transition-all ${
-                isDarkMode
-                  ? 'bg-white/10 hover:bg-white/20 text-gray-400 hover:text-white'
-                  : 'bg-gray-800/10 hover:bg-gray-800/20 text-gray-700'
-              }`}
-              aria-label="Toggle theme"
-            >
-              {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </button>
+    <>
+      <PageHeader kicker="mohsenkashefi.live" title={<>Visitors</>}>
+        {RANGES.map(r => (
+          <button key={r} onClick={() => setDays(r)}
+            className={`rounded-full border px-3 py-1.5 text-xs transition ${days === r ? "border-acc text-acc" : "border-line text-mute hover:text-fg"}`}>
+            {r} days
+          </button>
+        ))}
+      </PageHeader>
 
-            {/* Logout Button */}
-            <button
-              onClick={handleLogout}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                isDarkMode
-                  ? 'bg-white/10 hover:bg-white/20 text-white'
-                  : 'bg-black/90 hover:bg-black text-white'
-              }`}
-            >
-              <LogOut className="w-4 h-4" />
-              Logout
-            </button>
-          </div>
-        </div>
-      </header>
+      {err && <Card><p className="text-sm text-danger">{err}</p></Card>}
+      {!s && !err && <Empty>Loading visits…</Empty>}
 
-      <div className="container mx-auto px-6 py-6 max-w-7xl h-[calc(100vh-88px)] overflow-hidden">
-        {/* Loading State */}
-        {loading && (
-          <div className="text-center py-20">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-gray-200 border-t-black"></div>
-            <p className="text-gray-500 mt-4 font-medium">Loading dashboard data...</p>
+      {s && (
+        <div className="grid gap-5">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <Stat label="Visitors today" value={s.today} />
+            <Stat label={`Visitors · ${days} days`} value={s.visitors} sub={`${s.views} page and section views`} />
+            <Stat label="Sections per visit" value={s.perVisit.toFixed(1)} sub="how far people scroll" />
+            <Stat label="All-time views" value={allTime ?? "…"} sub="since tracking began" />
           </div>
-        )}
 
-        {/* Main Layout - Two Columns */}
-        {!loading && (
-          <div className="grid lg:grid-cols-2 gap-6 h-full">
-            {/* Left Column */}
-            <div className="flex flex-col gap-6 overflow-hidden">
-              {/* Stats Cards - 3 cards vertically */}
-              <div className="grid grid-cols-3 gap-4">
-                {statsCards.map((stat, index) => (
-                  <div
-                    key={index}
-                    className={`backdrop-blur-md border rounded-xl p-4 transition-all shadow-lg ${
-                      isDarkMode
-                        ? 'bg-white/5 border-white/10 hover:border-white/20'
-                        : 'bg-white/80 border-white/60 hover:bg-white/90 hover:border-white/80 hover:shadow-xl'
-                    }`}
-                  >
-                    <div className="flex items-center justify-center mb-3">
-                      <div className={`p-2 rounded-lg bg-gradient-to-r ${stat.color}`}>
-                        <stat.icon className="w-5 h-5 text-white" />
-                      </div>
-                    </div>
-                    <div className={`text-2xl font-bold mb-1 text-center ${
-                      isDarkMode
-                        ? 'text-white'
-                        : 'bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent'
-                    }`}>{stat.value.toLocaleString()}</div>
-                    <div className={`text-xs font-medium text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{stat.label}</div>
-                  </div>
+          <Card>
+            <p className="label">Daily visitors and views</p>
+            {s.views === 0 ? <Empty>No visits in this period yet.</Empty> : (
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={s.chart} margin={{ top: 10, right: 6, left: -18, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="gv" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#F3A847" stopOpacity={.35} /><stop offset="1" stopColor="#F3A847" stopOpacity={0} /></linearGradient>
+                      <linearGradient id="gw" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#72C6BE" stopOpacity={.25} /><stop offset="1" stopColor="#72C6BE" stopOpacity={0} /></linearGradient>
+                    </defs>
+                    <CartesianGrid stroke="#1F3337" vertical={false} />
+                    <XAxis dataKey="day" tick={{ fill: "#86A09E", fontSize: 11 }} tickLine={false} axisLine={false} minTickGap={24} />
+                    <YAxis allowDecimals={false} tick={{ fill: "#86A09E", fontSize: 11 }} tickLine={false} axisLine={false} />
+                    <Tooltip contentStyle={{ background: "#0F1B1E", border: "1px solid #1F3337", borderRadius: 10, color: "#F2EEE6" }} labelStyle={{ color: "#86A09E" }} />
+                    <Area type="monotone" dataKey="views" name="Views" stroke="#72C6BE" fill="url(#gw)" strokeWidth={1.5} />
+                    <Area type="monotone" dataKey="visitors" name="Visitors" stroke="#F3A847" fill="url(#gv)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </Card>
+
+          <div className="grid gap-5 lg:grid-cols-3">
+            <Card><p className="label">Where they come from</p><Bars rows={s.sources} total={s.visitors} /></Card>
+            <Card><p className="label">Devices</p><Bars rows={s.devices} total={s.visitors} /></Card>
+            <Card><p className="label">How far they get</p><Bars rows={s.reach} total={s.visitors} accent="#72C6BE" /></Card>
+          </div>
+
+          <Card>
+            <p className="label">Recent visits</p>
+            {s.recent.length === 0 ? <Empty>No visits yet.</Empty> : (
+              <ul className="divide-y divide-line">
+                {s.recent.map(v => (
+                  <li key={v.first.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3 text-sm">
+                    <span className="w-36 text-mute">{format(new Date(v.last), "d MMM, HH:mm")}</span>
+                    <span className="w-20 capitalize">{v.first.device_type || "—"}</span>
+                    <span className="w-28 text-mute">{hostOf(v.first.referrer)}</span>
+                    <span className="flex-1 text-xs text-cool">{[...v.paths].map(p => SECTIONS.find(x => x[0] === p)?.[1] || p).join(" → ")}</span>
+                  </li>
                 ))}
-              </div>
-
-              {/* Recent Activity */}
-              <div className={`backdrop-blur-md border rounded-2xl p-6 transition-all flex-1 overflow-hidden flex flex-col shadow-lg ${
-                isDarkMode
-                  ? 'bg-white/5 border-white/10 hover:border-white/20'
-                  : 'bg-white/80 border-white/60 hover:bg-white/90 hover:border-white/80 hover:shadow-xl'
-              }`}>
-                <h2 className={`text-xl font-bold mb-4 ${
-                  isDarkMode
-                    ? 'text-white'
-                    : 'bg-gradient-to-r from-cyan-600 to-green-600 bg-clip-text text-transparent'
-                }`}>Recent Activity</h2>
-                <div className="space-y-3 overflow-y-auto flex-1">
-                  {recentActivity.length > 0 ? (
-                    recentActivity.slice(0, 8).map((activity, index) => {
-                      const colors = ['bg-blue-500', 'bg-cyan-500', 'bg-purple-500', 'bg-pink-500', 'bg-green-500'];
-                      const color = colors[index % colors.length];
-                      const location = activity.country ? ` from ${activity.country}` : '';
-                      const device = activity.device_type ? ` (${activity.device_type})` : '';
-
-                      return (
-                        <ActivityItem
-                          key={index}
-                          action={`${activity.page_path}${location}${device}`}
-                          time={formatTimeAgo(activity.created_at)}
-                          color={color}
-                          isDarkMode={isDarkMode}
-                        />
-                      );
-                    })
-                  ) : (
-                    <p className="text-gray-400 text-center py-8 font-medium">No recent activity</p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Right Column */}
-            <div className="flex flex-col gap-4">
-              {/* Quick Actions - No title */}
-              <div className="grid grid-cols-1 gap-4">
-                <QuickActionCard
-                  title="Manage Projects"
-                  description="Add, edit, or remove portfolio projects"
-                  href="/dashboard/projects"
-                  icon={FolderOpen}
-                  color="from-blue-600 to-cyan-600"
-                  isDarkMode={isDarkMode}
-                />
-                <QuickActionCard
-                  title="Manage Skills"
-                  description="Update your skills and proficiency levels"
-                  href="/dashboard/skills"
-                  icon={Award}
-                  color="from-orange-600 to-red-600"
-                  isDarkMode={isDarkMode}
-                />
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+              </ul>
+            )}
+          </Card>
+        </div>
+      )}
+    </>
   );
 }
 
-function ActivityItem({ action, time, color, isDarkMode }: { action: string; time: string; color: string; isDarkMode: boolean }) {
+function Bars({ rows, total, accent = "#F3A847" }: { rows: [string, number][]; total: number; accent?: string }) {
+  if (!rows.length || !total) return <Empty>Nothing yet.</Empty>;
   return (
-    <div className={`flex items-start gap-4 p-4 rounded-lg backdrop-blur-sm transition-all ${
-      isDarkMode
-        ? 'bg-white/5 hover:bg-white/10'
-        : 'bg-white/50 hover:bg-white/70 shadow-sm hover:shadow-md'
-    }`}>
-      <div className={`w-3 h-3 ${color} rounded-full mt-1.5 flex-shrink-0`} />
-      <div className="flex-1 min-w-0">
-        <p className={`text-sm font-medium truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{action}</p>
-        <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{time}</p>
-      </div>
-    </div>
-  );
-}
-
-function QuickActionCard({ title, description, href, icon: Icon, color, disabled = false, isDarkMode }: {
-  title: string;
-  description: string;
-  href: string;
-  icon: any;
-  color: string;
-  disabled?: boolean;
-  isDarkMode?: boolean;
-}) {
-  if (disabled) {
-    return (
-      <div className={`relative block p-6 backdrop-blur-md border rounded-2xl opacity-60 cursor-not-allowed shadow-lg ${
-        isDarkMode
-          ? 'bg-white/5 border-white/10'
-          : 'bg-white/70 border-white/50'
-      }`}>
-        <div className="absolute top-4 right-4">
-          <Lock className={`w-5 h-5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
-        </div>
-        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r ${color} text-white text-xs font-bold mb-3`}>
-          <Icon className="w-4 h-4" />
-          Coming Soon
-        </div>
-        <h3 className={`text-xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{title}</h3>
-        <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{description}</p>
-      </div>
-    );
-  }
-
-  return (
-    <Link
-      href={href}
-      className={`block p-6 backdrop-blur-md border rounded-2xl transition-all group shadow-lg ${
-        isDarkMode
-          ? 'bg-white/5 border-white/10 hover:border-white/20'
-          : 'bg-white/80 border-white/60 hover:bg-white/90 hover:border-white/80 hover:shadow-xl'
-      }`}
-    >
-      <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-r ${color} text-white text-xs font-bold mb-3`}>
-        <Icon className="w-4 h-4" />
-        Quick Action
-      </div>
-      <h3 className={`text-xl font-bold mb-2 transition ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{title}</h3>
-      <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{description}</p>
-    </Link>
+    <ul className="grid gap-3">
+      {rows.map(([k, n]) => (
+        <li key={k}>
+          <div className="mb-1 flex justify-between text-sm"><span className="capitalize">{k}</span><span className="text-mute">{n} · {Math.round(n / total * 100)}%</span></div>
+          <div className="h-1.5 rounded-full bg-bg"><div className="h-full rounded-full" style={{ width: `${Math.max(2, n / total * 100)}%`, background: accent }} /></div>
+        </li>
+      ))}
+    </ul>
   );
 }

@@ -1,638 +1,207 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2, Github, ExternalLink, Star, Upload, X, Moon, Sun } from "lucide-react";
-import Link from "next/link";
-import { uploadProjectImage, deleteProjectImage } from "@/lib/uploadImage";
-import { useTheme } from "@/app/context/ThemeContext";
+import { useEffect, useState } from "react";
+import { ArrowDown, ArrowUp, Pencil, Plus, Trash2, Upload } from "lucide-react";
+import { supabase, siteAsset, TAGS, type Project } from "@/lib/supabase";
+import { uploadProjectImage } from "@/lib/uploadImage";
+import { Button, Card, Empty, Field, Notice, PageHeader, SAVED_NOTE, Toggle } from "@/components/ui";
 
-interface Project {
-  id: number;
-  title: string;
-  description: string;
-  category: string;
-  technologies: string[];
-  github_url?: string;
-  live_url?: string;
-  image_path?: string;
-  icon_name?: string;
-  is_featured: boolean;
-  order_index: number;
-  created_at: string;
-  updated_at: string;
-}
+const TAG_LABEL: Record<string, string> = { work: "Work", personal: "Personal", web: "Web", mobile: "Mobile", ai: "AI" };
+const SITE_IMAGES = ["kts", "fotovoltaico", "academy", "sahand", "foody", "pcp", "codesnack"].map(n => `media/p/${n}.jpg`);
+const COLORS = ["#F3A847", "#2DD4BF", "#FACC15", "#6E8BFF", "#B57BFF", "#FF7A45", "#3EE08F", "#38BDF8", "#F472B6"];
+
+type Draft = { id?: number; title: string; meta: string; description: string; tags: string[]; tech: string; live_url: string; github_url: string; accent: string; image_path: string; is_featured: boolean };
+const blank: Draft = { title: "", meta: "", description: "", tags: [], tech: "", live_url: "", github_url: "", accent: "#F3A847", image_path: "", is_featured: true };
+const toDraft = (p: Project): Draft => ({ id: p.id, title: p.title, meta: p.meta || "", description: p.description || "", tags: p.tags || [], tech: (p.technologies || []).join(", "),
+  live_url: p.live_url || "", github_url: p.github_url || "", accent: p.accent || "#F3A847", image_path: p.image_path || "", is_featured: !!p.is_featured });
 
 export default function ProjectsPage() {
-  const { isDarkMode, toggleTheme } = useTheme();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [items, setItems] = useState<Project[] | null>(null);
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [confirmId, setConfirmId] = useState<number | null>(null);
 
-  useEffect(() => {
-    fetchProjects();
-  }, []);
+  const load = async () => {
+    const { data, error } = await supabase.from("projects").select("*").order("order_index", { ascending: true });
+    if (error) setMsg({ kind: "err", text: error.message }); else setItems(data as Project[]);
+  };
+  useEffect(() => { load(); }, []);
 
-  const fetchProjects = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/projects');
-      if (response.ok) {
-        const data = await response.json();
-        setProjects(data.projects || []);
-      }
-    } catch (error) {
-      console.error('Error fetching projects:', error);
-    } finally {
-      setLoading(false);
-    }
+  const site = (items || []).filter(p => p.is_featured && p.tags?.length);
+  const other = (items || []).filter(p => !(p.is_featured && p.tags?.length));
+
+  const save = async () => {
+    if (!draft) return;
+    const bad = [draft.live_url, draft.github_url].find(u => u && !/^https:\/\//.test(u));
+    if (!draft.title.trim()) return setMsg({ kind: "err", text: "A project needs a title." });
+    if (!draft.tags.length) return setMsg({ kind: "err", text: "Pick at least one tag, so the website can filter it." });
+    if (bad) return setMsg({ kind: "err", text: `Links must start with https:// (${bad})` });
+    if (!/^#[0-9a-f]{6}$/i.test(draft.accent)) return setMsg({ kind: "err", text: "The colour must look like #F3A847." });
+    setBusy(true);
+    const row = {
+      title: draft.title.trim(), meta: draft.meta.trim() || null, description: draft.description.trim() || null, tags: draft.tags,
+      category: draft.tags.includes("work") ? "Work" : "Personal",
+      technologies: draft.tech.split(",").map(t => t.trim()).filter(Boolean), live_url: draft.live_url.trim() || null, github_url: draft.github_url.trim() || null,
+      accent: draft.accent, image_path: draft.image_path || null, is_featured: draft.is_featured, updated_at: new Date().toISOString(),
+    };
+    const maxOrder = Math.max(0, ...(items || []).map(p => p.order_index || 0));
+    const { error } = draft.id
+      ? await supabase.from("projects").update(row).eq("id", draft.id)
+      : await supabase.from("projects").insert({ ...row, order_index: maxOrder + 1 });
+    setBusy(false);
+    if (error) return setMsg({ kind: "err", text: error.message });
+    setDraft(null); setMsg({ kind: "ok", text: SAVED_NOTE }); load();
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this project?')) return;
-
-    try {
-      const response = await fetch(`/api/projects/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        setProjects(projects.filter(p => p.id !== id));
-      } else {
-        alert('Failed to delete project');
-      }
-    } catch (error) {
-      console.error('Error deleting project:', error);
-      alert('Error deleting project');
-    }
+  const remove = async (id: number) => {
+    const { error } = await supabase.from("projects").delete().eq("id", id);
+    setConfirmId(null);
+    if (error) setMsg({ kind: "err", text: error.message }); else { setMsg({ kind: "ok", text: "Project deleted." }); load(); }
   };
 
-  const openEditModal = (project: Project) => {
-    setEditingProject(project);
-    setShowModal(true);
+  // swap order with the neighbour in the visible list
+  const move = async (list: Project[], i: number, dir: -1 | 1) => {
+    const a = list[i], b = list[i + dir]; if (!a || !b) return;
+    await Promise.all([
+      supabase.from("projects").update({ order_index: b.order_index }).eq("id", a.id),
+      supabase.from("projects").update({ order_index: a.order_index }).eq("id", b.id),
+    ]);
+    load();
   };
 
-  const openCreateModal = () => {
-    setEditingProject(null);
-    setShowModal(true);
+  const toggleSite = async (p: Project) => {
+    if (!p.is_featured && !p.tags?.length) { setDraft(toDraft(p)); setMsg({ kind: "err", text: "Add tags first, then switch it on." }); return; }
+    const { error } = await supabase.from("projects").update({ is_featured: !p.is_featured }).eq("id", p.id);
+    if (error) setMsg({ kind: "err", text: error.message }); else { setMsg({ kind: "ok", text: SAVED_NOTE }); load(); }
   };
+
+  const row = (p: Project, list: Project[], i: number) => (
+    <li key={p.id} className="flex flex-wrap items-center gap-4 py-4">
+      <Thumb src={p.image_path} ring={p.accent} />
+      <div className="min-w-0 flex-1">
+        <p className="font-disp text-xl leading-tight">{p.title}</p>
+        <p className="mt-1 font-mono text-[.66rem] uppercase tracking-[.14em] text-mute">{p.meta || "—"} · {(p.tags || []).map(t => TAG_LABEL[t] || t).join(" · ") || "no tags"}</p>
+      </div>
+      <Toggle checked={!!p.is_featured && !!p.tags?.length} onChange={() => toggleSite(p)} label="On site" />
+      <div className="flex items-center gap-1">
+        <IconBtn label="Move up" onClick={() => move(list, i, -1)} disabled={i === 0}><ArrowUp className="h-4 w-4" /></IconBtn>
+        <IconBtn label="Move down" onClick={() => move(list, i, 1)} disabled={i === list.length - 1}><ArrowDown className="h-4 w-4" /></IconBtn>
+        <IconBtn label="Edit" onClick={() => { setMsg(null); setDraft(toDraft(p)); }}><Pencil className="h-4 w-4" /></IconBtn>
+        {confirmId === p.id
+          ? <Button variant="danger" className="!px-3 !py-1.5 text-xs" onClick={() => remove(p.id)}>Delete?</Button>
+          : <IconBtn label="Delete" onClick={() => setConfirmId(p.id)}><Trash2 className="h-4 w-4" /></IconBtn>}
+      </div>
+    </li>
+  );
 
   return (
-    <div className={`min-h-screen transition-colors duration-500 ${
-      isDarkMode
-        ? 'bg-gradient-to-br from-primary-dark via-gray-900 to-black'
-        : 'bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50'
-    }`}>
-      {/* Header */}
-      <header className={`backdrop-blur-sm border-b sticky top-0 z-50 transition-colors duration-500 ${
-        isDarkMode
-          ? 'bg-white/5 border-white/10'
-          : 'bg-white/70 border-white/20'
-      }`}>
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/dashboard"
-              className={`transition ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
-            >
-              ← Back
-            </Link>
-            <h1 className={`text-2xl font-black transition-colors ${
-              isDarkMode
-                ? 'text-white'
-                : 'bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent'
-            }`}>
-              Manage Projects
-            </h1>
-          </div>
-          <div className="flex items-center gap-3">
-            {/* Theme Toggle */}
-            <button
-              onClick={toggleTheme}
-              className={`p-2.5 rounded-lg transition-all ${
-                isDarkMode
-                  ? 'bg-white/10 hover:bg-white/20 text-gray-400 hover:text-white'
-                  : 'bg-gray-800/10 hover:bg-gray-800/20 text-gray-700'
-              }`}
-              aria-label="Toggle theme"
-            >
-              {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </button>
+    <>
+      <PageHeader kicker="Things I built" title="Projects">
+        <Button variant="primary" onClick={() => { setMsg(null); setDraft({ ...blank }); }}><Plus className="h-4 w-4" /> New project</Button>
+      </PageHeader>
+      {msg && <Notice kind={msg.kind}>{msg.text}</Notice>}
+      {draft && <Editor draft={draft} setDraft={setDraft} onSave={save} onCancel={() => setDraft(null)} busy={busy} />}
 
-            <button
-              onClick={openCreateModal}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-accent-cyan text-white rounded-lg hover:opacity-90 transition"
-            >
-              <Plus className="w-5 h-5" />
-              Add Project
-            </button>
+      <Card className="mb-5">
+        <p className="label">On the website · in this order</p>
+        {!items ? <Empty>Loading…</Empty> : site.length === 0 ? <Empty>No projects on the site yet.</Empty> : <ul className="divide-y divide-line">{site.map((p, i) => row(p, site, i))}</ul>}
+      </Card>
+      <Card>
+        <p className="label">Not shown on the website</p>
+        {!items ? <Empty>Loading…</Empty> : other.length === 0 ? <Empty>Every project is on the site.</Empty> : <ul className="divide-y divide-line">{other.map((p, i) => row(p, other, i))}</ul>}
+      </Card>
+    </>
+  );
+}
+
+function Editor({ draft, setDraft, onSave, onCancel, busy }: { draft: Draft; setDraft: (d: Draft) => void; onSave: () => void; onCancel: () => void; busy: boolean }) {
+  const [uploading, setUploading] = useState(false);
+  const [upErr, setUpErr] = useState("");
+  const set = (k: keyof Draft, v: Draft[keyof Draft]) => setDraft({ ...draft, [k]: v });
+  const upload = async (f?: File) => {
+    if (!f) return; setUploading(true); setUpErr("");
+    if (f.size > 2 * 1024 * 1024) { setUploading(false); setUpErr("Please use an image under 2 MB."); return; }
+    try { set("image_path", await uploadProjectImage(f)); } catch { setUpErr("Upload failed, please try again."); } finally { setUploading(false); }
+  };
+  return (
+    <Card className="mb-6 border-acc/40">
+      <div className="mb-5 flex items-center justify-between">
+        <p className="font-disp text-2xl">{draft.id ? "Edit project" : "New project"}</p>
+        <Toggle checked={draft.is_featured} onChange={v => set("is_featured", v)} label="Show on website" />
+      </div>
+      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+        <div className="grid gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Title"><input className="field" value={draft.title} onChange={e => set("title", e.target.value)} placeholder="Insurance CRM" /></Field>
+            <Field label="Label above the title"><input className="field" value={draft.meta} onChange={e => set("meta", e.target.value)} placeholder="KTS Finance · 2026" /></Field>
+          </div>
+          <Field label="Description"><textarea className="field" value={draft.description} onChange={e => set("description", e.target.value)} placeholder="One or two short sentences." /></Field>
+          <Field label="Tags (website filters)">
+            <div className="flex flex-wrap gap-2">
+              {TAGS.map(t => {
+                const on = draft.tags.includes(t);
+                return <button type="button" key={t} onClick={() => set("tags", on ? draft.tags.filter(x => x !== t) : [...draft.tags, t])}
+                  className={`rounded-full border px-3 py-1.5 text-xs transition ${on ? "border-acc bg-acc/15 text-acc" : "border-line text-mute hover:text-fg"}`}>{TAG_LABEL[t]}</button>;
+              })}
+            </div>
+          </Field>
+          <Field label="Tech (comma separated)"><input className="field" value={draft.tech} onChange={e => set("tech", e.target.value)} placeholder="Angular, Ionic, Firebase" /></Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Live link" hint="Shown on the site if set."><input className="field" value={draft.live_url} onChange={e => set("live_url", e.target.value)} placeholder="https://…" /></Field>
+            <Field label="GitHub link" hint="Used when there is no live link."><input className="field" value={draft.github_url} onChange={e => set("github_url", e.target.value)} placeholder="https://github.com/…" /></Field>
+          </div>
+          <Field label="Aura colour">
+            <div className="flex flex-wrap items-center gap-2">
+              {COLORS.map(c => <button type="button" key={c} aria-label={c} onClick={() => set("accent", c)}
+                className={`h-7 w-7 rounded-full border-2 ${draft.accent.toLowerCase() === c.toLowerCase() ? "border-fg" : "border-transparent"}`} style={{ background: c }} />)}
+              <input type="color" value={draft.accent} onChange={e => set("accent", e.target.value)} className="h-8 w-10 cursor-pointer rounded border border-line bg-bg" />
+              <input className="field !w-28" value={draft.accent} onChange={e => set("accent", e.target.value)} />
+            </div>
+          </Field>
+          <Field label="Image">
+            <div className="flex flex-wrap items-center gap-2">
+              {SITE_IMAGES.map(src => <button type="button" key={src} onClick={() => set("image_path", src)}
+                className={`rounded-xl border-2 ${draft.image_path === src ? "border-acc" : "border-transparent"}`}><Thumb src={src} size={44} /></button>)}
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-line px-3 py-2 text-xs text-mute hover:text-fg">
+                <Upload className="h-3.5 w-3.5" /> {uploading ? "Uploading…" : "Upload"}
+                <input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={e => upload(e.target.files?.[0])} />
+              </label>
+              {draft.image_path && <button type="button" className="text-xs text-mute hover:text-danger" onClick={() => set("image_path", "")}>Remove</button>}
+            </div>
+            {upErr && <p className="mt-2 text-xs text-danger">{upErr}</p>}
+          </Field>
+        </div>
+
+        {/* preview, styled like the details panel on the website */}
+        <div>
+          <p className="label">Preview</p>
+          <div className="rounded-2xl border border-line p-5" style={{ background: `radial-gradient(ellipse at 30% 0%, ${draft.accent}22, transparent 60%), var(--bg)` }}>
+            {draft.image_path && <Thumb src={draft.image_path} ring={draft.accent} size={64} />}
+            <p className="mt-4 font-mono text-[.62rem] uppercase tracking-[.14em] text-mute">{draft.meta || "Label"}</p>
+            <p className="mt-1 font-disp text-2xl leading-tight">{draft.title || "Title"}</p>
+            <p className="mt-2 text-sm text-fg/80">{draft.description || "Description"}</p>
+            <p className="mt-3 font-mono text-xs text-cool">{draft.tech.split(",").map(t => t.trim()).filter(Boolean).join(" · ") || "Tech"}</p>
+            {(draft.live_url || draft.github_url) && <p className="mt-3 text-sm text-acc">{(draft.live_url || draft.github_url).replace(/^https:\/\//, "")} ↗</p>}
           </div>
         </div>
-      </header>
-
-      <div className="container mx-auto px-4 py-4 max-h-[calc(100vh-80px)] overflow-y-auto">
-        {loading && (
-          <div className="text-center py-12">
-            <div className={`inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 ${isDarkMode ? 'border-primary' : 'border-blue-600'}`}></div>
-            <p className={`mt-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Loading projects...</p>
-          </div>
-        )}
-
-        {!loading && projects.length === 0 && (
-          <div className="text-center py-12">
-            <p className={`text-lg mb-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>No projects yet</p>
-            <button
-              onClick={openCreateModal}
-              className="px-6 py-3 bg-gradient-to-r from-primary to-accent-cyan text-white rounded-lg hover:opacity-90 transition"
-            >
-              Create Your First Project
-            </button>
-          </div>
-        )}
-
-        {!loading && projects.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {projects.map((project) => (
-              <div
-                key={project.id}
-                className={`backdrop-blur-md border rounded-xl p-4 transition-all shadow-lg ${
-                  isDarkMode
-                    ? 'bg-white/5 border-white/10 hover:border-white/20'
-                    : 'bg-white/80 border-white/60 hover:bg-white/90 hover:border-white/80 hover:shadow-xl'
-                }`}
-              >
-                {/* Featured Badge */}
-                {project.is_featured && (
-                  <div className="flex items-center gap-1 text-yellow-400 text-xs mb-2">
-                    <Star className="w-3 h-3 fill-current" />
-                    <span>Featured</span>
-                  </div>
-                )}
-
-                {/* Project Info */}
-                <h3 className={`text-lg font-bold mb-1 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{project.title}</h3>
-                <p className={`text-xs mb-2 line-clamp-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{project.description}</p>
-
-                <div className="mb-2">
-                  <span className={`inline-block px-2 py-0.5 rounded-full text-xs ${
-                    isDarkMode
-                      ? 'bg-white/10 text-gray-300'
-                      : 'bg-gray-200 text-gray-700'
-                  }`}>
-                    {project.category}
-                  </span>
-                </div>
-
-                {/* Technologies */}
-                {project.technologies && project.technologies.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {project.technologies.slice(0, 3).map((tech, idx) => (
-                      <span
-                        key={idx}
-                        className="px-2 py-0.5 bg-primary/20 text-primary text-xs rounded"
-                      >
-                        {tech}
-                      </span>
-                    ))}
-                    {project.technologies.length > 3 && (
-                      <span className="px-2 py-0.5 text-gray-400 text-xs">
-                        +{project.technologies.length - 3}
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {/* Links */}
-                <div className="flex items-center gap-3 mb-3">
-                  {project.github_url && (
-                    <a
-                      href={project.github_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`transition ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
-                    >
-                      <Github className="w-5 h-5" />
-                    </a>
-                  )}
-                  {project.live_url && (
-                    <a
-                      href={project.live_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`transition ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
-                    >
-                      <ExternalLink className="w-5 h-5" />
-                    </a>
-                  )}
-                </div>
-
-                {/* Actions */}
-                <div className={`flex items-center gap-2 pt-3 border-t ${isDarkMode ? 'border-white/10' : 'border-gray-200'}`}>
-                  <button
-                    onClick={() => openEditModal(project)}
-                    className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-xs transition ${
-                      isDarkMode
-                        ? 'bg-white/10 hover:bg-white/20 text-white'
-                        : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
-                    }`}
-                  >
-                    <Edit className="w-3 h-3" />
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(project.id)}
-                    className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-xs transition ${
-                      isDarkMode
-                        ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400'
-                        : 'bg-red-50 hover:bg-red-100 text-red-600'
-                    }`}
-                  >
-                    <Trash2 className="w-3 h-3" />
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
-
-      {/* Modal */}
-      {showModal && (
-        <ProjectModal
-          project={editingProject}
-          onClose={() => {
-            setShowModal(false);
-            setEditingProject(null);
-          }}
-          onSave={() => {
-            setShowModal(false);
-            setEditingProject(null);
-            fetchProjects();
-          }}
-          isDarkMode={isDarkMode}
-        />
-      )}
-    </div>
+      <div className="mt-6 flex gap-2">
+        <Button variant="primary" onClick={onSave} disabled={busy || uploading}>{busy ? "Saving…" : "Save"}</Button>
+        <Button onClick={onCancel}>Cancel</Button>
+      </div>
+    </Card>
   );
 }
 
-interface ProjectModalProps {
-  project: Project | null;
-  onClose: () => void;
-  onSave: () => void;
-  isDarkMode: boolean;
+function Thumb({ src, ring, size = 52 }: { src?: string | null; ring?: string | null; size?: number }) {
+  const r = Math.round(size * .28);
+  return src
+    // eslint-disable-next-line @next/next/no-img-element
+    ? <img src={siteAsset(src)} alt="" width={size} height={size} className="shrink-0 object-cover" style={{ width: size, height: size, borderRadius: r, boxShadow: ring ? `0 0 0 2px var(--bg), 0 0 0 3.5px ${ring}` : undefined }} />
+    : <span className="grid shrink-0 place-items-center bg-panel2 text-xs text-mute" style={{ width: size, height: size, borderRadius: r }}>—</span>;
 }
 
-function ProjectModal({ project, onClose, onSave, isDarkMode }: ProjectModalProps) {
-  const [formData, setFormData] = useState({
-    title: project?.title || '',
-    description: project?.description || '',
-    category: project?.category || 'Mobile',
-    technologies: project?.technologies?.join(', ') || '',
-    github_url: project?.github_url || '',
-    live_url: project?.live_url || '',
-    image_path: project?.image_path || '',
-    icon_name: project?.icon_name || '',
-    is_featured: project?.is_featured || false,
-    order_index: project?.order_index || 0,
-  });
-  const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [imagePreview, setImagePreview] = useState<string | null>(project?.image_path || null);
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      alert('Please select an image file');
-      return;
-    }
-
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image size must be less than 5MB');
-      return;
-    }
-
-    try {
-      setUploading(true);
-
-      // Upload to Supabase Storage
-      const imageUrl = await uploadProjectImage(file);
-
-      // Update form data and preview
-      setFormData({ ...formData, image_path: imageUrl });
-      setImagePreview(imageUrl);
-
-      // If there was a previous image (and it's a Supabase URL), optionally delete it
-      if (project?.image_path && project.image_path.includes('supabase.co')) {
-        await deleteProjectImage(project.image_path);
-      }
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      alert('Failed to upload image. Please try again.');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleRemoveImage = () => {
-    setFormData({ ...formData, image_path: '' });
-    setImagePreview(null);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-
-    try {
-      const payload = {
-        ...formData,
-        technologies: formData.technologies
-          .split(',')
-          .map(t => t.trim())
-          .filter(t => t.length > 0),
-      };
-
-      const url = project ? `/api/projects/${project.id}` : '/api/projects';
-      const method = project ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (response.ok) {
-        onSave();
-      } else {
-        const data = await response.json();
-        alert(`Error: ${data.error || 'Failed to save project'}`);
-      }
-    } catch (error) {
-      console.error('Error saving project:', error);
-      alert('Error saving project');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className={`border rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto ${
-        isDarkMode
-          ? 'bg-gray-900 border-white/10'
-          : 'bg-white border-gray-200'
-      }`}>
-        <h2 className={`text-2xl font-bold mb-6 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-          {project ? 'Edit Project' : 'Add New Project'}
-        </h2>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-              Title *
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className={`w-full px-4 py-2 border rounded-lg focus:border-primary focus:outline-none ${
-                isDarkMode
-                  ? 'bg-white/5 border-white/10 text-white'
-                  : 'bg-gray-50 border-gray-300 text-gray-900'
-              }`}
-            />
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-              Description *
-            </label>
-            <textarea
-              required
-              rows={3}
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className={`w-full px-4 py-2 border rounded-lg focus:border-primary focus:outline-none ${
-                isDarkMode
-                  ? 'bg-white/5 border-white/10 text-white'
-                  : 'bg-gray-50 border-gray-300 text-gray-900'
-              }`}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                Category
-              </label>
-              <select
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className={`w-full px-4 py-2 border rounded-lg focus:border-primary focus:outline-none ${
-                  isDarkMode
-                    ? 'bg-white/5 border-white/10 text-white'
-                    : 'bg-gray-50 border-gray-300 text-gray-900'
-                }`}
-              >
-                <option value="Mobile">Mobile</option>
-                <option value="Web">Web</option>
-                <option value="Package">Package</option>
-                <option value="Desktop">Desktop</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                Order Index
-              </label>
-              <input
-                type="number"
-                value={formData.order_index}
-                onChange={(e) => setFormData({ ...formData, order_index: parseInt(e.target.value) || 0 })}
-                className={`w-full px-4 py-2 border rounded-lg focus:border-primary focus:outline-none ${
-                  isDarkMode
-                    ? 'bg-white/5 border-white/10 text-white'
-                    : 'bg-gray-50 border-gray-300 text-gray-900'
-                }`}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-              Technologies (comma-separated)
-            </label>
-            <input
-              type="text"
-              placeholder="Flutter, Dart, Firebase"
-              value={formData.technologies}
-              onChange={(e) => setFormData({ ...formData, technologies: e.target.value })}
-              className={`w-full px-4 py-2 border rounded-lg focus:border-primary focus:outline-none ${
-                isDarkMode
-                  ? 'bg-white/5 border-white/10 text-white'
-                  : 'bg-gray-50 border-gray-300 text-gray-900'
-              }`}
-            />
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-              GitHub URL
-            </label>
-            <input
-              type="url"
-              placeholder="https://github.com/username/repo"
-              value={formData.github_url}
-              onChange={(e) => setFormData({ ...formData, github_url: e.target.value })}
-              className={`w-full px-4 py-2 border rounded-lg focus:border-primary focus:outline-none ${
-                isDarkMode
-                  ? 'bg-white/5 border-white/10 text-white'
-                  : 'bg-gray-50 border-gray-300 text-gray-900'
-              }`}
-            />
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-              Live URL
-            </label>
-            <input
-              type="url"
-              placeholder="https://example.com"
-              value={formData.live_url}
-              onChange={(e) => setFormData({ ...formData, live_url: e.target.value })}
-              className={`w-full px-4 py-2 border rounded-lg focus:border-primary focus:outline-none ${
-                isDarkMode
-                  ? 'bg-white/5 border-white/10 text-white'
-                  : 'bg-gray-50 border-gray-300 text-gray-900'
-              }`}
-            />
-          </div>
-
-          {/* Image Upload Section */}
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-              Project Image
-            </label>
-
-            {imagePreview ? (
-              <div className="relative">
-                <img
-                  src={imagePreview}
-                  alt="Preview"
-                  className={`w-full h-48 object-cover rounded-lg border ${isDarkMode ? 'border-white/10' : 'border-gray-300'}`}
-                />
-                <button
-                  type="button"
-                  onClick={handleRemoveImage}
-                  className="absolute top-2 right-2 p-2 bg-red-500/80 hover:bg-red-500 rounded-full text-white transition"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-                <div className={`mt-2 text-xs break-all ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {formData.image_path}
-                </div>
-              </div>
-            ) : (
-              <div>
-                <label className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary transition ${
-                  isDarkMode
-                    ? 'border-white/20 bg-white/5'
-                    : 'border-gray-300 bg-gray-50'
-                }`}>
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <Upload className={`w-10 h-10 mb-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
-                    <p className={`mb-2 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                      <span className="font-semibold">Click to upload</span> or drag and drop
-                    </p>
-                    <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>PNG, JPG or WEBP (MAX. 5MB)</p>
-                  </div>
-                  <input
-                    type="file"
-                    className="hidden"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    disabled={uploading}
-                  />
-                </label>
-                {uploading && (
-                  <div className="mt-2 text-center">
-                    <div className={`inline-block animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 ${isDarkMode ? 'border-primary' : 'border-blue-600'}`}></div>
-                    <p className={`text-sm mt-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Uploading...</p>
-                  </div>
-                )}
-              </div>
-            )}
-            <p className={`mt-2 text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>
-              Upload an image or use an icon name below (lock, flutter, code, etc.)
-            </p>
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-              Icon Name (alternative to image)
-            </label>
-            <input
-              type="text"
-              placeholder="lock, flutter, code, security"
-              value={formData.icon_name}
-              onChange={(e) => setFormData({ ...formData, icon_name: e.target.value })}
-              className={`w-full px-4 py-2 border rounded-lg focus:border-primary focus:outline-none ${
-                isDarkMode
-                  ? 'bg-white/5 border-white/10 text-white'
-                  : 'bg-gray-50 border-gray-300 text-gray-900'
-              }`}
-            />
-            <p className={`mt-1 text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>
-              Only used if no image is uploaded
-            </p>
-          </div>
-
-          <div>
-            <label className={`flex items-center gap-2 text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-              <input
-                type="checkbox"
-                checked={formData.is_featured}
-                onChange={(e) => setFormData({ ...formData, is_featured: e.target.checked })}
-                className={`w-4 h-4 rounded text-primary focus:ring-primary ${
-                  isDarkMode
-                    ? 'border-white/10 bg-white/5'
-                    : 'border-gray-300 bg-white'
-                }`}
-              />
-              Featured Project
-            </label>
-          </div>
-
-          <div className="flex items-center gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className={`flex-1 px-4 py-2 rounded-lg transition ${
-                isDarkMode
-                  ? 'bg-white/10 hover:bg-white/20 text-white'
-                  : 'bg-gray-100 hover:bg-gray-200 text-gray-900'
-              }`}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex-1 px-4 py-2 bg-gradient-to-r from-primary to-accent-cyan text-white rounded-lg hover:opacity-90 transition disabled:opacity-50"
-            >
-              {saving ? 'Saving...' : 'Save Project'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
+function IconBtn({ label, children, ...p }: React.ButtonHTMLAttributes<HTMLButtonElement> & { label: string }) {
+  return <button {...p} aria-label={label} title={label} className="rounded-full p-2 text-mute transition hover:bg-panel2 hover:text-fg disabled:opacity-25">{children}</button>;
 }
