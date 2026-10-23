@@ -10,7 +10,7 @@ const RANGES = [7, 30, 90] as const;
 
 // the website's sections, in the order a visitor scrolls through them
 const SECTIONS: [string, string][] = [
-  ["/home", "Opened the site"], ["/work", "Things I built"], ["/stack", "Stack"], ["/experience", "Experience"],
+  ["/home", "Opened the site"], ["/work", "Portfolio"], ["/stack", "Stack"], ["/experience", "Experience"],
   ["/contact", "Let's Talk"], ["/artist", "Artist side"], ["/artist/music", "Music"], ["/artist/photos", "Photos"], ["/artist/contact", "Artist contact"],
 ];
 

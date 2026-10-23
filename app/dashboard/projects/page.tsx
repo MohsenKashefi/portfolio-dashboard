@@ -97,7 +97,7 @@ export default function ProjectsPage() {
 
   return (
     <>
-      <PageHeader kicker="Things I built" title="Projects">
+      <PageHeader kicker="Portfolio" title="Projects">
         <Button variant="primary" onClick={() => { setMsg(null); setDraft({ ...blank }); }}><Plus className="h-4 w-4" /> New project</Button>
       </PageHeader>
       {msg && <Notice kind={msg.kind}>{msg.text}</Notice>}
