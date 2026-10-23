@@ -95,6 +95,9 @@ export default function VisitorsPage() {
   return (
     <>
       <PageHeader kicker="mohsenkashefi.live" title={<>Visitors</>}>
+        {/* the flag lives in the website's own storage, so it is set by opening the site once on each device */}
+        <a href="https://mohsenkashefi.live/?me" target="_blank" rel="noopener" title="Open this on each of your devices (Mac, laptop, phone) once"
+          className="mr-2 rounded-full border border-line px-3 py-1.5 text-xs text-mute transition hover:border-acc hover:text-acc">Don’t count this device ↗</a>
         {RANGES.map(r => (
           <button key={r} onClick={() => setDays(r)}
             className={`rounded-full border px-3 py-1.5 text-xs transition ${days === r ? "border-acc text-acc" : "border-line text-mute hover:text-fg"}`}>
