@@ -26,6 +26,8 @@ export type PageView = {
   device_type: string | null;
   referrer: string | null;
   country: string | null;
+  region: string | null;
+  city: string | null;
   created_at: string;
 };
 

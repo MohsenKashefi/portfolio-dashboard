@@ -14,6 +14,15 @@ const SECTIONS: [string, string][] = [
   ["/contact", "Let's Talk"], ["/artist", "Artist side"], ["/artist/music", "Music"], ["/artist/photos", "Photos"], ["/artist/contact", "Artist contact"],
 ];
 
+// "IT" → "🇮🇹 Italy"; visits recorded before location tracking have no country
+const countryName = (code: string | null) => {
+  if (!code) return "Unknown";
+  let name = code; try { name = new Intl.DisplayNames(["en"], { type: "region" }).of(code) || code; } catch {}
+  const flag = /^[A-Z]{2}$/.test(code) ? String.fromCodePoint(...[...code].map(c => 0x1f1a5 + c.charCodeAt(0))) : "";
+  return `${flag} ${name}`.trim();
+};
+const placeOf = (v: PageView) => v.city ? `${v.city}${v.country ? `, ${countryName(v.country).replace(/^\S+\s/, "")}` : ""}` : v.country ? countryName(v.country) : "Unknown";
+
 const hostOf = (r: string | null) => {
   if (!r) return "Direct";
   try { const h = new URL(r).hostname.replace(/^www\./, ""); return h.includes("google.") ? "Google" : h.includes("linkedin") || h === "lnkd.in" ? "LinkedIn" : h.includes("github") ? "GitHub" : h.includes("soundcloud") ? "SoundCloud" : h; }
@@ -25,7 +34,7 @@ async function fetchSince(since: Date) {
   const rows: PageView[] = [];
   for (let from = 0; ; from += 1000) {
     const { data, error } = await supabase.from("page_views")
-      .select("id,page_path,session_id,device_type,referrer,country,created_at")
+      .select("id,page_path,session_id,device_type,referrer,country,region,city,created_at")
       .gte("created_at", since.toISOString()).order("created_at", { ascending: true }).range(from, from + 999);
     if (error) throw error;
     rows.push(...(data as PageView[]));
@@ -75,6 +84,9 @@ export default function VisitorsPage() {
       perVisit: sessions.size ? rows.length / sessions.size : 0,
       devices: count(v => v.first.device_type || "unknown"),
       sources: count(v => hostOf(v.first.referrer)).slice(0, 8),
+      cities: count(v => placeOf(v.first)).slice(0, 10),
+      countries: count(v => countryName(v.first.country)).slice(0, 8),
+      located: visits.filter(v => v.first.city || v.first.country).length,
       reach: SECTIONS.map(([p, label]) => [label, visits.filter(v => v.paths.has(p) || (p === "/home" && v.paths.size > 0)).length] as [string, number]),
       recent: visits.sort((a, b) => b.last.localeCompare(a.last)).slice(0, 12),
     };
@@ -125,6 +137,17 @@ export default function VisitorsPage() {
             )}
           </Card>
 
+          <div className="grid gap-5 lg:grid-cols-2">
+            <Card>
+              <p className="label">Where they are · cities</p>
+              {s.located === 0 ? <Empty>Locations appear for new visits from now on.</Empty> : <Bars rows={s.cities.filter(([k]) => k !== "Unknown")} total={s.located} accent="#B57BFF" />}
+            </Card>
+            <Card>
+              <p className="label">Where they are · countries</p>
+              {s.located === 0 ? <Empty>Locations appear for new visits from now on.</Empty> : <Bars rows={s.countries.filter(([k]) => k !== "Unknown")} total={s.located} accent="#B57BFF" />}
+            </Card>
+          </div>
+
           <div className="grid gap-5 lg:grid-cols-3">
             <Card><p className="label">Where they come from</p><Bars rows={s.sources} total={s.visitors} /></Card>
             <Card><p className="label">Devices</p><Bars rows={s.devices} total={s.visitors} /></Card>
@@ -139,7 +162,8 @@ export default function VisitorsPage() {
                   <li key={v.first.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3 text-sm">
                     <span className="w-36 text-mute">{format(new Date(v.last), "d MMM, HH:mm")}</span>
                     <span className="w-20 capitalize">{v.first.device_type || "—"}</span>
-                    <span className="w-28 text-mute">{hostOf(v.first.referrer)}</span>
+                    <span className="w-44 truncate" title={[v.first.city, v.first.region, v.first.country].filter(Boolean).join(", ")}>{placeOf(v.first)}</span>
+                    <span className="w-24 text-mute">{hostOf(v.first.referrer)}</span>
                     <span className="flex-1 text-xs text-cool">{[...v.paths].map(p => SECTIONS.find(x => x[0] === p)?.[1] || p).join(" → ")}</span>
                   </li>
                 ))}
